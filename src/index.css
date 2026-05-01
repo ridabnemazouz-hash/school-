@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@theme {
+  --color-mauve-50: #fbf9fb;
+  --color-mauve-100: #f5f0f6;
+  --color-mauve-200: #eaddea;
+  --color-mauve-300: #dac0da;
+  --color-mauve-400: #c49ec4;
+  --color-mauve-500: #ac7bac;
+  --color-mauve-600: #8f5c8f;
+  --color-mauve-700: #754a75;
+  --color-mauve-800: #603e60;
+  --color-mauve-900: #513651;
+  --color-mauve-950: #2d1b2d;
+}
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900 font-sans antialiased;
+  }
+}
