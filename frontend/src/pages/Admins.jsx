@@ -92,9 +92,8 @@ export function Admins() {
 
   const fetchAdmins = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API}/auth/admins`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+            const res = await fetch(`${API}/auth/admins`, {
+        credentials: 'include'
       });
       if (res.ok) {
         const data = await res.json();
@@ -119,10 +118,9 @@ export function Admins() {
       return;
     }
     try {
-      const token = localStorage.getItem('token');
-      await fetch(`${API}/auth/admins/${id}`, {
+            await fetch(`${API}/auth/admins/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        credentials: 'include'
       });
     } catch (err) {
       console.warn(err.message);
@@ -136,10 +134,9 @@ export function Admins() {
 
   const handleToggleStatus = async (id) => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API}/auth/admins/${id}/toggle-status`, {
+            const res = await fetch(`${API}/auth/admins/${id}/toggle-status`, {
         method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}` }
+        credentials: 'include'
       });
       if (res.ok) {
         const data = await res.json();
@@ -163,13 +160,10 @@ export function Admins() {
     setError('');
 
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API}/auth/add-admin`, {
+            const res = await fetch(`${API}/auth/add-admin`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(formData),
       });
 

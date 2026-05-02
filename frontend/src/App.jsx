@@ -6,6 +6,7 @@ import { Login } from './pages/Login';
 import { DashboardHome } from './pages/Dashboard/DashboardHome';
 import { Admins } from './pages/Admins';
 import { Students } from './pages/Students';
+import { StudentProfile } from './pages/StudentProfile';
 import { Teachers } from './pages/Teachers';
 import { Parents } from './pages/Parents';
 import { Classes } from './pages/Classes';
@@ -24,6 +25,9 @@ import { MyClasses } from './pages/MyClasses';
 import { MyStudents } from './pages/MyStudents';
 import { AITutor } from './pages/AITutor';
 import { Expenses } from './pages/Expenses';
+import { TeacherSalaries } from './pages/TeacherSalaries';
+import { SecurityLogs } from './pages/SecurityLogs';
+import { VideoRooms } from './pages/VideoRooms';
 
 // Placeholder components for other routes
 const Placeholder = ({ title }) => (
@@ -46,13 +50,16 @@ function App() {
             
             {/* Admin Routes */}
             <Route path="students" element={<Students />} />
+            <Route path="students/:id" element={<StudentProfile />} />
             <Route path="teachers" element={<Teachers />} />
             <Route path="parents" element={<Parents />} />
             <Route path="classes" element={<Classes />} />
             <Route path="subjects" element={<Subjects />} />
             <Route path="transport" element={<Transport />} />
             <Route path="accounts" element={<Accounts />} />
+            <Route path="security" element={<SecurityLogs />} />
             <Route path="expenses" element={<Expenses />} />
+            <Route path="salaries" element={<TeacherSalaries />} />
 
             {/* Teacher Routes */}
             <Route path="my-classes" element={<MyClasses />} />
@@ -68,6 +75,7 @@ function App() {
             <Route path="content" element={<Content />} />
             <Route path="chat" element={<Chat />} />
             <Route path="payments" element={<Payments />} />
+            <Route path="rooms" element={<VideoRooms />} />
             <Route path="settings" element={<Settings />} />
           </Route>
         </Routes>

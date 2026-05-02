@@ -77,11 +77,11 @@ export function Classes() {
 
   const handleAdd = async (e) => {
     e.preventDefault();
-    const token = localStorage.getItem('token');
-    try {
+        try {
       const res = await fetch(`${API}/classes/`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           name: formData.name,
           level: formData.level,
@@ -101,11 +101,10 @@ export function Classes() {
   };
 
   const handleDelete = async (id) => {
-    const token = localStorage.getItem('token');
-    try {
+        try {
       await fetch(`${API}/classes/${id}`, {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
+        credentials: 'include'
       });
       fetchClasses();
       setDeleteConfirm(null);

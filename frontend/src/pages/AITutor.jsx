@@ -33,14 +33,11 @@ export function AITutor() {
     setLoading(true);
 
     try {
-      const token = localStorage.getItem('token');
-      const endpoint = mode === 'study-plan' ? '/ai-tutor/study-plan' : '/ai-tutor/chat';
+            const endpoint = mode === 'study-plan' ? '/ai-tutor/study-plan' : '/ai-tutor/chat';
       const res = await fetch(`${API}${endpoint}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           messages: [...messages, userMsg].map(m => ({ role: m.role, content: m.content })),
         }),

@@ -7,13 +7,9 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
 from database import get_db
 from models import ExpenseCreate, ExpenseResponse, ExpenseDB
-from auth_utils import SECRET_KEY, ALGORITHM
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jose import jwt, JWTError
-from models import UserDB
+from routes.auth import require_admin_or_super
 from pydantic import BaseModel
 
-security = HTTPBearer()
 router = APIRouter(prefix="/expenses", tags=["expenses"])
 
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "..", "uploads", "expenses")
@@ -32,25 +28,6 @@ def validate_filename(filename: str) -> str:
     name = os.path.basename(filename)
     name = re.sub(r'[^\w\-.]', '_', name)
     return name
-
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
-    token = credentials.credentials
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email = payload.get("sub")
-        if email is None:
-            raise HTTPException(status_code=401, detail="Invalid token")
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
-    user = db.query(UserDB).filter(UserDB.email == email).first()
-    if user is None:
-        raise HTTPException(status_code=401, detail="User not found")
-    return user
-
-def require_admin_or_super(current_user=Depends(get_current_user)):
-    if current_user.role not in ["Admin", "Super Admin"]:
-        raise HTTPException(status_code=403, detail="Only Admin or Super Admin can manage expenses")
-    return current_user
 
 @router.get("/")
 def get_expenses(category: str = None, db: Session = Depends(get_db), current_user=Depends(require_admin_or_super)):

@@ -2,14 +2,10 @@ import os
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from models import UserDB
-from auth_utils import SECRET_KEY, ALGORITHM
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jose import jwt, JWTError
+from routes.auth import get_current_user
 import httpx
 from pydantic import BaseModel
 
-security = HTTPBearer()
 router = APIRouter(prefix="/ai-tutor", tags=["ai-tutor"])
 
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
@@ -28,20 +24,6 @@ Rules:
 - If asked about a subject you're not sure about, say so honestly
 - Never give direct answers to homework - guide the student to find the answer themselves
 """
-
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
-    token = credentials.credentials
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email = payload.get("sub")
-        if email is None:
-            raise HTTPException(status_code=401, detail="Invalid token")
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
-    user = db.query(UserDB).filter(UserDB.email == email).first()
-    if user is None:
-        raise HTTPException(status_code=401, detail="User not found")
-    return user
 
 def require_student_or_teacher(current_user=Depends(get_current_user)):
     if current_user.role not in ["Student", "Teacher", "Admin", "Super Admin", "Parent"]:

@@ -33,9 +33,8 @@ export function Chat() {
 
   const fetchContacts = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API}/chat/contacts`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+            const res = await fetch(`${API}/chat/contacts`, {
+        credentials: 'include'
       });
       if (res.ok) {
         const data = await res.json();
@@ -50,9 +49,8 @@ export function Chat() {
 
   const fetchMessages = async (contactId) => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API}/chat/messages/${contactId}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+            const res = await fetch(`${API}/chat/messages/${contactId}`, {
+        credentials: 'include'
       });
       if (res.ok) {
         const data = await res.json();
@@ -69,13 +67,10 @@ export function Chat() {
 
     setSending(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API}/chat/send`, {
+            const res = await fetch(`${API}/chat/send`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({
           receiver_id: activeContact.id,
           content: newMessage

@@ -21,11 +21,8 @@ export function Accounts() {
 
   const fetchPending = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API}/auth/pending-requests`, {
-        headers: {
-          'Authorization': `Bearer ${token}`,
-        },
+            const res = await fetch(`${API}/auth/pending-requests`, {
+        credentials: 'include',
       });
       if (res.ok) {
         const data = await res.json();
@@ -43,10 +40,9 @@ export function Accounts() {
     setError('');
     setSuccess('');
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API}/auth/approve/${id}`, {
+            const res = await fetch(`${API}/auth/approve/${id}`, {
         method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}` }
+        credentials: 'include'
       });
       if (!res.ok) {
         const errData = await res.json();
@@ -66,10 +62,9 @@ export function Accounts() {
     setError('');
     setSuccess('');
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API}/auth/reject/${id}`, {
+            const res = await fetch(`${API}/auth/reject/${id}`, {
         method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}` }
+        credentials: 'include'
       });
       if (!res.ok) {
         const errData = await res.json();

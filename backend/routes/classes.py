@@ -2,33 +2,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
 from models import ClassCreate, ClassDB
-from auth_utils import create_access_token
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jose import jwt, JWTError
-from auth_utils import SECRET_KEY, ALGORITHM
+from routes.auth import require_admin_or_super
 
-security = HTTPBearer()
 router = APIRouter(prefix="/classes", tags=["classes"])
-
-def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
-    token = credentials.credentials
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        email = payload.get("sub")
-        if email is None:
-            raise HTTPException(status_code=401, detail="Invalid token")
-    except JWTError:
-        raise HTTPException(status_code=401, detail="Invalid token")
-    from models import UserDB
-    user = db.query(UserDB).filter(UserDB.email == email).first()
-    if user is None:
-        raise HTTPException(status_code=401, detail="User not found")
-    return user
-
-def require_admin_or_super(current_user=Depends(get_current_user)):
-    if current_user.role not in ["Admin", "Super Admin"]:
-        raise HTTPException(status_code=403, detail="Only Admin or Super Admin can perform this action")
-    return current_user
 
 @router.get("/")
 def get_classes(db: Session = Depends(get_db)):

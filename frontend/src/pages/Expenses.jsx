@@ -45,9 +45,8 @@ export function Expenses() {
 
   const fetchExpenses = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const url = filter === 'All' ? `${API}/expenses/` : `${API}/expenses/?category=${filter}`;
-      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+            const url = filter === 'All' ? `${API}/expenses/` : `${API}/expenses/?category=${filter}`;
+      const res = await fetch(url, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setExpenses(data);
@@ -61,8 +60,7 @@ export function Expenses() {
 
   const fetchStats = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API}/expenses/stats`, { headers: { Authorization: `Bearer ${token}` } });
+            const res = await fetch(`${API}/expenses/stats`, { credentials: 'include' });
       if (res.ok) setStats(await res.json());
     } catch (err) {
       console.error('Failed to fetch stats:', err);
@@ -74,8 +72,7 @@ export function Expenses() {
     if (!form.title || !form.amount) return;
     setUploading(true);
     try {
-      const token = localStorage.getItem('token');
-      const formData = new FormData();
+            const formData = new FormData();
       formData.append('title', form.title);
       formData.append('category', form.category);
       formData.append('amount', parseInt(form.amount));
@@ -84,7 +81,7 @@ export function Expenses() {
 
       const res = await fetch(`${API}/expenses/`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
         body: formData,
       });
       if (res.ok) {
@@ -104,10 +101,9 @@ export function Expenses() {
   const handleDelete = async (id) => {
     if (!window.confirm('Supprimer cette dépense?')) return;
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API}/expenses/${id}`, {
+            const res = await fetch(`${API}/expenses/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
       });
       if (res.ok) {
         fetchExpenses();
@@ -122,13 +118,10 @@ export function Expenses() {
     setAnalyzing(true);
     setAnalysis(null);
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API}/expenses/analyze`, {
+            const res = await fetch(`${API}/expenses/analyze`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       });
       if (res.ok) {

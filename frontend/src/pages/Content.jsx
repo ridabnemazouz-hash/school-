@@ -31,7 +31,7 @@ export function Content() {
   const fetchContents = async () => {
     try {
       const url = filter === 'All' ? `${API}/content/` : `${API}/content/?subject=${encodeURIComponent(filter)}`;
-      const res = await fetch(url);
+      const res = await fetch(url, { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setContents(data);
@@ -58,8 +58,7 @@ export function Content() {
     setUploading(true);
 
     try {
-      const token = localStorage.getItem('token');
-      const formData = new FormData();
+            const formData = new FormData();
       formData.append('title', form.title);
       formData.append('subject', form.subject);
       formData.append('content_type', form.content_type);
@@ -69,7 +68,7 @@ export function Content() {
 
       const res = await fetch(`${API}/content/upload`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
         body: formData,
       });
 
@@ -89,10 +88,9 @@ export function Content() {
   const handleDelete = async (id) => {
     if (!window.confirm('Delete this content?')) return;
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API}/content/${id}`, {
+            const res = await fetch(`${API}/content/${id}`, {
         method: 'DELETE',
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
       });
       if (res.ok) fetchContents();
     } catch (err) {

@@ -31,14 +31,8 @@ export function Payments() {
 
   const fetchPayments = async () => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        setError('Not logged in. Please sign in first.');
-        setLoading(false);
-        return;
-      }
-      const res = await fetch(`${API}/payments/`, {
-        headers: { Authorization: `Bearer ${token}` },
+            const res = await fetch(`${API}/payments/`, {
+        credentials: 'include',
       });
       if (res.ok) {
         const data = await res.json();
@@ -58,9 +52,8 @@ export function Payments() {
 
   const fetchStats = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API}/payments/stats`, {
-        headers: { Authorization: `Bearer ${token}` },
+            const res = await fetch(`${API}/payments/stats`, {
+        credentials: 'include',
       });
       if (res.ok) {
         const data = await res.json();
@@ -75,20 +68,30 @@ export function Payments() {
     e.preventDefault();
     setPaying(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API}/payments/`, {
+            const res = await fetch(`${API}/payments/`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(payForm),
       });
       if (res.ok) {
+        const data = await res.json();
         setShowPay(false);
         setPayForm({ student_name: '', month: '', amount: 1200, payment_method: 'Credit Card' });
         fetchPayments();
         fetchStats();
+        const receiptRes = await fetch(`${API}/payments/${data.id}/receipt`, { credentials: 'include' });
+        if (receiptRes.ok) {
+          const blob = await receiptRes.blob();
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement('a');
+          a.href = url;
+          a.download = `Facture-${data.id}.pdf`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+        }
       }
     } catch (err) {
       console.error('Payment failed:', err);
@@ -99,18 +102,29 @@ export function Payments() {
 
   const handleUpdateStatus = async (id, status) => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API}/payments/${id}`, {
+            const res = await fetch(`${API}/payments/${id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ status }),
       });
       if (res.ok) {
         fetchPayments();
         fetchStats();
+        if (status === 'Paid') {
+          const receiptRes = await fetch(`${API}/payments/${id}/receipt`, { credentials: 'include' });
+          if (receiptRes.ok) {
+            const blob = await receiptRes.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Facture-${id}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+          }
+        }
       }
     } catch (err) {
       console.error('Update failed:', err);
@@ -119,9 +133,8 @@ export function Payments() {
 
   const handleDownloadFacture = async (id) => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API}/payments/${id}/receipt`, {
-        headers: { Authorization: `Bearer ${token}` },
+            const res = await fetch(`${API}/payments/${id}/receipt`, {
+        credentials: 'include',
       });
       if (res.ok) {
         const blob = await res.blob();

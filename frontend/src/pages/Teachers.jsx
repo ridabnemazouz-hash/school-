@@ -50,9 +50,8 @@ export function Teachers() {
   const fetchTeachers = async () => {
     setLoading(true);
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API}/auth/users?role=Teacher`, {
-        headers: { 'Authorization': `Bearer ${token}` }
+            const res = await fetch(`${API}/auth/users?role=Teacher`, {
+        credentials: 'include'
       });
       if (res.ok) {
         const data = await res.json();
@@ -69,13 +68,10 @@ export function Teachers() {
     setFormLoading(true);
     setError('');
     try {
-      const token = localStorage.getItem('token');
-      const res = await fetch(`${API}/auth/register`, {
+            const res = await fetch(`${API}/auth/register`, {
         method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ name: formData.name, email: formData.email, password: formData.password, role: 'Teacher' }),
       });
       if (!res.ok) {
@@ -101,8 +97,7 @@ export function Teachers() {
 
   const handleDelete = async (id) => {
     try {
-      const token = localStorage.getItem('token');
-      await fetch(`${API}/auth/users/${id}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${token}` } });
+            await fetch(`${API}/auth/users/${id}`, { method: 'DELETE', credentials: 'include' });
     } catch {}
     setTeachers(prev => prev.filter(t => t.id !== id));
     setDeleteConfirm(null);

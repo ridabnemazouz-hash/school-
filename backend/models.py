@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, Text, ForeignKey
 from database import Base
 import datetime
 from pydantic import BaseModel, EmailStr
@@ -12,8 +12,19 @@ class UserDB(Base):
     email = Column(String, unique=True, index=True)
     role = Column(String)
     hashed_password = Column(String)
+    refresh_token = Column(String, nullable=True)
     status = Column(String, default="Pending")
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+class SecurityLogDB(Base):
+    __tablename__ = "security_logs"
+    id = Column(Integer, primary_key=True, index=True)
+    event_type = Column(String, index=True)  # login_success, login_failed, token_refresh, rate_limit_blocked
+    email = Column(String, nullable=True, index=True)
+    ip_address = Column(String, nullable=True)
+    user_agent = Column(String, nullable=True)
+    details = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
 
 class StudentDB(Base):
     __tablename__ = "students"
@@ -23,6 +34,8 @@ class StudentDB(Base):
     student_class = Column(String)
     attendance = Column(String, default="100%")
     gpa = Column(String, default="0.0")
+    date_of_birth = Column(String, nullable=True)
+    avatar_url = Column(String, nullable=True)
 
 class ClassDB(Base):
     __tablename__ = "classes"
@@ -82,6 +95,36 @@ class ExpenseDB(Base):
     created_by_name = Column(String)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
+class SalaryDB(Base):
+    __tablename__ = "salaries"
+    id = Column(Integer, primary_key=True, index=True)
+    teacher_id = Column(Integer, index=True)
+    teacher_name = Column(String, index=True)
+    month = Column(String)  # e.g. "May 2026"
+    amount = Column(Integer)  # in DH
+    status = Column(String, default="Pending")  # Paid, Pending
+    payment_date = Column(DateTime, nullable=True)
+    notes = Column(String, nullable=True)
+    file_url = Column(String, nullable=True)  # receipt PDF/image
+    created_by = Column(Integer)
+    created_by_name = Column(String)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+class VideoRoomDB(Base):
+    __tablename__ = "video_rooms"
+    id = Column(Integer, primary_key=True, index=True)
+    title = Column(String, index=True)
+    description = Column(String, nullable=True)
+    teacher_id = Column(Integer, index=True)
+    teacher_name = Column(String)
+    subject = Column(String, nullable=True)
+    room_code = Column(String, unique=True, index=True)
+    max_participants = Column(Integer, default=30)
+    status = Column(String, default="scheduled")  # scheduled, active, ended
+    scheduled_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    ended_at = Column(DateTime, nullable=True)
+
 # Pydantic Schemas
 class UserCreate(BaseModel):
     name: str
@@ -103,6 +146,7 @@ class StudentCreate(BaseModel):
     student_class: str
     attendance: str = "100%"
     gpa: str = "0.0"
+    date_of_birth: Optional[str] = None
 
 class ClassCreate(BaseModel):
     name: str
@@ -192,5 +236,66 @@ class ExpenseResponse(BaseModel):
     created_by: int
     created_by_name: str
     created_at: datetime.datetime
+    class Config:
+        from_attributes = True
+
+class SalaryCreate(BaseModel):
+    teacher_id: int
+    teacher_name: str
+    month: str
+    amount: int
+    notes: Optional[str] = None
+
+class SalaryUpdate(BaseModel):
+    amount: Optional[int] = None
+    status: Optional[str] = None
+    payment_date: Optional[datetime.datetime] = None
+    notes: Optional[str] = None
+    file_url: Optional[str] = None
+
+class SalaryResponse(BaseModel):
+    id: int
+    teacher_id: int
+    teacher_name: str
+    month: str
+    amount: int
+    status: str
+    payment_date: Optional[datetime.datetime] = None
+    notes: Optional[str] = None
+    file_url: Optional[str] = None
+    created_by: int
+    created_by_name: str
+    created_at: datetime.datetime
+    class Config:
+        from_attributes = True
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+class TokenPair(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str
+
+class VideoRoomCreate(BaseModel):
+    title: str
+    description: Optional[str] = None
+    subject: Optional[str] = None
+    max_participants: int = 30
+    scheduled_at: Optional[datetime.datetime] = None
+
+class VideoRoomResponse(BaseModel):
+    id: int
+    title: str
+    description: Optional[str] = None
+    teacher_id: int
+    teacher_name: str
+    subject: Optional[str] = None
+    room_code: str
+    max_participants: int
+    status: str
+    scheduled_at: Optional[datetime.datetime] = None
+    created_at: datetime.datetime
+    ended_at: Optional[datetime.datetime] = None
     class Config:
         from_attributes = True

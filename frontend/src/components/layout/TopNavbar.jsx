@@ -35,18 +35,17 @@ export function TopNavbar({ onMenuToggle }) {
   }, [user]);
 
   const fetchPendingRequests = () => {
-    fetch(`${API}/auth/pending-requests`)
-      .then(res => res.json())
+    fetch(`${API}/auth/pending-requests`, { credentials: 'include' })
+      .then(res => res.ok ? res.json() : [])
       .then(data => setPendingRequests(data))
       .catch(err => console.error('Failed to fetch pending requests:', err));
   };
 
   const handleApprove = async (id) => {
-    const token = localStorage.getItem('token');
     try {
       const res = await fetch(`${API}/auth/approve/${id}`, {
         method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}` }
+        credentials: 'include',
       });
       if (res.ok) {
         setActionFeedback({ type: 'success', message: 'User approved!' });
@@ -64,11 +63,10 @@ export function TopNavbar({ onMenuToggle }) {
   };
 
   const handleReject = async (id) => {
-    const token = localStorage.getItem('token');
-    try {
+        try {
       const res = await fetch(`${API}/auth/reject/${id}`, {
         method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}` }
+        credentials: 'include',
       });
       if (res.ok) {
         setActionFeedback({ type: 'success', message: 'User rejected!' });
