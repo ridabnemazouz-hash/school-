@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
@@ -6,10 +6,10 @@ import { cn } from '../../utils';
 import { t } from '../../i18n/translations';
 import { 
   LayoutDashboard, Users, GraduationCap, BookOpen, FileText, 
-  CalendarCheck, Settings, LogOut, School, Bus, UserPlus, FileDown, MessageSquare, Calendar, CreditCard
+  CalendarCheck, Settings, LogOut, School, Bus, UserPlus, FileDown, MessageSquare, Calendar, CreditCard, X
 } from 'lucide-react';
 
-export function Sidebar() {
+export function Sidebar({ mobileOpen = false, onClose }) {
   const { user, logout } = useAuth();
   const { lang } = useLanguage();
 
@@ -64,11 +64,18 @@ export function Sidebar() {
     return items.filter(item => item.roles.includes(user?.role));
   };
 
-  return (
-    <aside className="w-64 bg-slate-900 text-slate-300 flex flex-col h-screen fixed left-0 top-0 border-r border-slate-800">
-      <div className="h-16 flex items-center px-6 border-b border-slate-800">
-        <School className="text-mauve-400 mr-3" size={28} />
-        <span className="text-xl font-bold text-white tracking-wide">EduSaaS</span>
+  const sidebarContent = (
+    <>
+      <div className="h-16 flex items-center justify-between px-6 border-b border-slate-800">
+        <div className="flex items-center">
+          <School className="text-mauve-400 mr-3" size={28} />
+          <span className="text-xl font-bold text-white tracking-wide">EduSaaS</span>
+        </div>
+        {onClose && (
+          <button onClick={onClose} className="md:hidden text-slate-400 hover:text-white p-1">
+            <X size={20} />
+          </button>
+        )}
       </div>
       
       <div className="flex-1 py-6 overflow-y-auto space-y-1 px-4">
@@ -78,6 +85,7 @@ export function Sidebar() {
             <NavLink
               key={item.name}
               to={item.path}
+              onClick={onClose}
               className={({ isActive }) => cn(
                 'flex items-center px-3 py-2.5 rounded-lg transition-all duration-200 group font-medium',
                 isActive 
@@ -94,13 +102,34 @@ export function Sidebar() {
 
       <div className="p-4 border-t border-slate-800">
         <button 
-          onClick={logout}
+          onClick={() => { logout(); if (onClose) onClose(); }}
           className="flex items-center w-full px-3 py-2.5 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors font-medium"
         >
           <LogOut className="mr-3" size={20} />
           {t(lang, 'logout')}
         </button>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Mobile Overlay */}
+      {mobileOpen && (
+        <div className="fixed inset-0 bg-black/60 z-40 md:hidden" onClick={onClose}></div>
+      )}
+
+      {/* Desktop Sidebar */}
+      <aside className="hidden md:flex w-64 bg-slate-900 text-slate-300 flex-col h-screen fixed left-0 top-0 border-r border-slate-800">
+        {sidebarContent}
+      </aside>
+
+      {/* Mobile Sidebar */}
+      <aside className={`fixed inset-y-0 left-0 w-64 bg-slate-900 text-slate-300 flex-col h-screen z-50 transform transition-transform duration-300 md:hidden ${
+        mobileOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}>
+        {sidebarContent}
+      </aside>
+    </>
   );
 }

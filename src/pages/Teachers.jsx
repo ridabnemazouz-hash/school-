@@ -6,8 +6,7 @@ import { Modal } from '../components/ui/Modal';
 import { Plus, Search, MoreVertical, Trash2, Loader, BookOpen } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { t } from '../i18n/translations';
-
-const API = 'http://localhost:8000';
+import API from '../config';
 
 function ActionMenu({ user, onDelete }) {
   const [open, setOpen] = useState(false);

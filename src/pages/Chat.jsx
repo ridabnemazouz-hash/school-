@@ -2,8 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Card } from '../components/ui/Card';
 import { Search, Send, Paperclip, Image, MoreVertical, Loader, MessageSquare } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-
-const API = 'http://localhost:8000';
+import API from '../config';
 
 export function Chat() {
   const { user } = useAuth();

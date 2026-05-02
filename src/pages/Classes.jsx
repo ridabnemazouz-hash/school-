@@ -6,6 +6,7 @@ import { Modal } from '../components/ui/Modal';
 import { Plus, Search, MoreVertical, Trash2, Users } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { t } from '../i18n/translations';
+import API from '../config';
 
 const LEVELS = [
   { id: 'primary', ar: 'ابتدائي', fr: 'Primaire', en: 'Primary', grades: ['1ère année','2ème année','3ème année','4ème année','5ème année','6ème année'], color: 'bg-emerald-100 text-emerald-700' },
@@ -54,7 +55,7 @@ export function Classes() {
 
   const fetchClasses = () => {
     setLoading(true);
-    fetch('http://localhost:8000/classes/')
+    fetch(`${API}/classes/`)
       .then(res => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         return res.json();
@@ -78,7 +79,7 @@ export function Classes() {
     e.preventDefault();
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch('http://localhost:8000/classes/', {
+      const res = await fetch(`${API}/classes/`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
@@ -102,7 +103,7 @@ export function Classes() {
   const handleDelete = async (id) => {
     const token = localStorage.getItem('token');
     try {
-      await fetch(`http://localhost:8000/classes/${id}`, {
+      await fetch(`${API}/classes/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });

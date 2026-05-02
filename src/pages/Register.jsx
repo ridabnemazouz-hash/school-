@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { School, User, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { t } from '../i18n/translations';
+import API from '../config';
 
 export function Register() {
   const { lang, setLang } = useLanguage();
@@ -36,7 +37,7 @@ export function Register() {
     setLoading(true);
     
     try {
-      const response = await fetch('http://localhost:8000/auth/register', {
+      const response = await fetch(`${API}/auth/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

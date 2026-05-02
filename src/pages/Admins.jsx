@@ -8,8 +8,7 @@ import { Plus, Search, MoreVertical, ShieldAlert, Trash2, UserCheck, UserX, Load
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { t } from '../i18n/translations';
-
-const API = 'http://localhost:8000';
+import API from '../config';
 
 function ActionMenu({ admin, onDelete, onToggleStatus }) {
   const { lang } = useLanguage();

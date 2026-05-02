@@ -16,6 +16,7 @@ import {
   Tooltip, 
   ResponsiveContainer 
 } from 'recharts';
+import API from '../../config';
 
 const attendanceData = [
   { name: 'Mon', value: 92 },
@@ -24,8 +25,6 @@ const attendanceData = [
   { name: 'Thu', value: 96 },
   { name: 'Fri', value: 94 },
 ];
-
-const API = 'http://localhost:8000';
 
 export function DashboardHome() {
   const { user } = useAuth();

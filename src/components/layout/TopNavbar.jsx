@@ -3,8 +3,9 @@ import { Bell, Search, Menu, ChevronDown, CheckCircle, XCircle, UserPlus, Clock 
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { languageFlags, languageNames, t } from '../../i18n/translations';
+import API from '../../config';
 
-export function TopNavbar() {
+export function TopNavbar({ onMenuToggle }) {
   const { user, switchRole } = useAuth();
   const { lang, setLang } = useLanguage();
   const [pendingRequests, setPendingRequests] = useState([]);
@@ -32,7 +33,7 @@ export function TopNavbar() {
   }, [user]);
 
   const fetchPendingRequests = () => {
-    fetch('http://localhost:8000/auth/pending-requests')
+    fetch(`${API}/auth/pending-requests`)
       .then(res => res.json())
       .then(data => setPendingRequests(data))
       .catch(err => console.error('Failed to fetch pending requests:', err));
@@ -41,7 +42,7 @@ export function TopNavbar() {
   const handleApprove = async (id) => {
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch(`http://localhost:8000/auth/approve/${id}`, {
+      const res = await fetch(`${API}/auth/approve/${id}`, {
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -63,7 +64,7 @@ export function TopNavbar() {
   const handleReject = async (id) => {
     const token = localStorage.getItem('token');
     try {
-      const res = await fetch(`http://localhost:8000/auth/reject/${id}`, {
+      const res = await fetch(`${API}/auth/reject/${id}`, {
         method: 'PUT',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -93,9 +94,9 @@ export function TopNavbar() {
   }));
 
   return (
-    <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-6 sticky top-0 z-30">
+    <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 sm:px-6 sticky top-0 z-30">
       <div className="flex items-center flex-1">
-        <button className="md:hidden mr-4 text-slate-500 hover:text-slate-700">
+        <button onClick={onMenuToggle} className="md:hidden mr-3 text-slate-500 hover:text-slate-700 p-1">
           <Menu size={24} />
         </button>
         <div className="relative max-w-md w-full hidden sm:block">

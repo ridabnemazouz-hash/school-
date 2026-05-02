@@ -5,8 +5,7 @@ import { Button } from '../components/ui/Button';
 import { Check, X, ShieldAlert, Loader } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { t } from '../i18n/translations';
-
-const API = 'http://localhost:8000';
+import API from '../config';
 
 export function Accounts() {
   const { lang } = useLanguage();
