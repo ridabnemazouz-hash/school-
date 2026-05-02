@@ -1,5 +1,7 @@
 import os
 import uuid
+import re
+import html
 import httpx
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
 from sqlalchemy.orm import Session
@@ -19,6 +21,17 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 OPENROUTER_API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
 OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions"
+
+MAX_FILE_SIZE = 10 * 1024 * 1024  # 10MB
+ALLOWED_EXPENSE_EXTENSIONS = {".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx"}
+
+def sanitize_string(value: str) -> str:
+    return html.escape(value.strip())[:200]
+
+def validate_filename(filename: str) -> str:
+    name = os.path.basename(filename)
+    name = re.sub(r'[^\w\-.]', '_', name)
+    return name
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
     token = credentials.credentials
@@ -67,14 +80,32 @@ async def create_expense(
     db: Session = Depends(get_db),
     current_user=Depends(require_admin_or_super)
 ):
+    title = sanitize_string(title)
+    description = sanitize_string(description) if description else None
+    
+    if amount <= 0:
+        raise HTTPException(status_code=400, detail="Amount must be positive")
+    if amount > 10000000:
+        raise HTTPException(status_code=400, detail="Amount exceeds maximum limit")
+    
     file_url = None
     if file and file.filename:
-        ext = os.path.splitext(file.filename)[1]
+        safe_filename = validate_filename(file.filename)
+        ext = os.path.splitext(safe_filename)[1].lower()
+        
+        if ext not in ALLOWED_EXPENSE_EXTENSIONS:
+            raise HTTPException(status_code=400, detail=f"File type not allowed. Allowed: {', '.join(ALLOWED_EXPENSE_EXTENSIONS)}")
+        
+        content = await file.read()
+        if len(content) > MAX_FILE_SIZE:
+            raise HTTPException(status_code=400, detail="File too large. Maximum size is 10MB")
+        
         filename = f"{uuid.uuid4().hex}{ext}"
         filepath = os.path.join(UPLOAD_DIR, filename)
+        
         with open(filepath, "wb") as f:
-            content = await file.read()
             f.write(content)
+        
         file_url = f"/uploads/expenses/{filename}"
 
     db_expense = ExpenseDB(
@@ -102,7 +133,7 @@ def delete_expense(
         raise HTTPException(status_code=404, detail="Expense not found")
     if expense.file_url:
         filepath = os.path.join(UPLOAD_DIR, os.path.basename(expense.file_url))
-        if os.path.exists(filepath):
+        if os.path.exists(filepath) and os.path.commonpath([filepath, UPLOAD_DIR]) == UPLOAD_DIR:
             os.remove(filepath)
     db.delete(expense)
     db.commit()
@@ -169,10 +200,10 @@ Respond in French. Keep it concise and practical. Use bullet points."""
                 }
             )
             if response.status_code != 200:
-                raise HTTPException(status_code=502, detail=f"AI error: {response.text}")
+                raise HTTPException(status_code=502, detail="AI service temporarily unavailable")
             data = response.json()
             return {"analysis": data["choices"][0]["message"]["content"]}
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="AI analysis failed")

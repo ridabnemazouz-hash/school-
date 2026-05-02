@@ -2,13 +2,25 @@ from fastapi import APIRouter, HTTPException, Depends, status, Security
 from sqlalchemy.orm import Session
 from database import get_db
 from models import UserCreate, UserDB, LoginRequest, Token
-from auth_utils import get_password_hash, verify_password, create_access_token
+from auth_utils import get_password_hash, verify_password, create_access_token, validate_password_strength
 from fastapi.responses import Response
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
+import html
+import re
 
 security = HTTPBearer()
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+MAX_NAME_LENGTH = 100
+MAX_EMAIL_LENGTH = 255
+
+def sanitize_string(value: str) -> str:
+    return html.escape(value.strip())[:MAX_NAME_LENGTH]
+
+def validate_email_format(email: str) -> bool:
+    pattern = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+    return re.match(pattern, email) is not None
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Security(security), db: Session = Depends(get_db)):
     token = credentials.credentials
@@ -68,6 +80,18 @@ def delete_user(user_id: int, db: Session = Depends(get_db), current_user: UserD
 
 @router.post("/register")
 def register(user: UserCreate, db: Session = Depends(get_db)):
+    # Sanitize inputs
+    user.name = sanitize_string(user.name)
+    user.email = user.email.lower().strip()
+    
+    # Validate email format
+    if not validate_email_format(user.email):
+        raise HTTPException(status_code=400, detail="Invalid email format")
+    
+    # Validate email length
+    if len(user.email) > MAX_EMAIL_LENGTH:
+        raise HTTPException(status_code=400, detail="Email too long")
+    
     # Check if user exists
     existing_user = db.query(UserDB).filter(UserDB.email == user.email).first()
     if existing_user:
@@ -75,6 +99,11 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     
     if user.role == "Super Admin":
         raise HTTPException(status_code=403, detail="Super Admin role cannot be requested via registration")
+    
+    # Validate password strength
+    pw_error = validate_password_strength(user.password)
+    if pw_error:
+        raise HTTPException(status_code=400, detail=pw_error)
     
     # Hash password
     hashed_password = get_password_hash(user.password)
@@ -96,6 +125,17 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
 
 @router.post("/add-admin")
 def add_admin(user: UserCreate, db: Session = Depends(get_db), current_user: UserDB = Depends(require_super_admin)):
+    # Sanitize inputs
+    user.name = sanitize_string(user.name)
+    user.email = user.email.lower().strip()
+    
+    # Validate email format
+    if not validate_email_format(user.email):
+        raise HTTPException(status_code=400, detail="Invalid email format")
+    
+    if len(user.email) > MAX_EMAIL_LENGTH:
+        raise HTTPException(status_code=400, detail="Email too long")
+    
     # Check if user exists
     existing_user = db.query(UserDB).filter(UserDB.email == user.email).first()
     if existing_user:
@@ -103,6 +143,11 @@ def add_admin(user: UserCreate, db: Session = Depends(get_db), current_user: Use
     
     if user.role == "Super Admin":
         raise HTTPException(status_code=403, detail="Only one Super Admin is allowed and cannot be created here")
+    
+    # Validate password strength
+    pw_error = validate_password_strength(user.password)
+    if pw_error:
+        raise HTTPException(status_code=400, detail=pw_error)
     
     # Hash password
     hashed_password = get_password_hash(user.password)
@@ -168,6 +213,8 @@ def toggle_admin_status(user_id: int, db: Session = Depends(get_db), current_use
     user = db.query(UserDB).filter(UserDB.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Admin not found")
+    if user.role == "Super Admin":
+        raise HTTPException(status_code=403, detail="Super Admin status cannot be changed")
     user.status = "Inactive" if user.status == "Active" else "Active"
     db.commit()
     db.refresh(user)
