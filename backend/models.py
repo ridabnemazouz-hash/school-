@@ -24,6 +24,16 @@ class StudentDB(Base):
     attendance = Column(String, default="100%")
     gpa = Column(String, default="0.0")
 
+class ClassDB(Base):
+    __tablename__ = "classes"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True)
+    level = Column(String)  # ابتدائي, إعدادي, ثانوي
+    grade = Column(String)  # 1-6, 7-9, 10-12
+    teacher = Column(String)
+    capacity = Column(Integer, default=30)
+    students_count = Column(Integer, default=0)
+
 class MessageDB(Base):
     __tablename__ = "messages"
     id = Column(Integer, primary_key=True, index=True)
@@ -54,6 +64,13 @@ class StudentCreate(BaseModel):
     student_class: str
     attendance: str = "100%"
     gpa: str = "0.0"
+
+class ClassCreate(BaseModel):
+    name: str
+    level: str
+    grade: str
+    teacher: str
+    capacity: int = 30
 
 class MessageBase(BaseModel):
     receiver_id: int

@@ -1,15 +1,17 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '../components/ui/Card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '../components/ui/Table';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { Plus, Search, MoreVertical, Trash2, Loader } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
+import { t } from '../i18n/translations';
 
 const API = 'http://localhost:8000';
 
-function ActionMenu({ user, onDelete, onToggleStatus }) {
+function ActionMenu({ user, onDelete }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef(null);
+  const ref = React.useRef(null);
   useEffect(() => {
     const handler = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
     document.addEventListener('mousedown', handler);
@@ -33,6 +35,7 @@ function ActionMenu({ user, onDelete, onToggleStatus }) {
 }
 
 export function Students() {
+  const { lang } = useLanguage();
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -93,7 +96,7 @@ export function Students() {
         grade: formData.grade,
         class: formData.studentClass,
       }]);
-      showSuccess('✅ Student added successfully!');
+      showSuccess(t(lang, 'userApproved'));
       setIsModalOpen(false);
       setFormData({ name: '', email: '', password: '', grade: '', studentClass: '' });
     } catch (err) {
@@ -110,7 +113,7 @@ export function Students() {
     } catch {}
     setStudents(prev => prev.filter(s => s.id !== id));
     setDeleteConfirm(null);
-    showSuccess('🗑️ Student removed!');
+    showSuccess(t(lang, 'userRejected'));
   };
 
   const filtered = students.filter(s =>
@@ -122,11 +125,11 @@ export function Students() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Students Management</h1>
-          <p className="text-slate-500 mt-1">Manage all enrolled students in the system.</p>
+          <h1 className="text-2xl font-bold text-slate-800">{t(lang, 'studentManagement')}</h1>
+          <p className="text-slate-500 mt-1">{t(lang, 'studentManagementDesc')}</p>
         </div>
         <Button className="shrink-0" onClick={() => setIsModalOpen(true)}>
-          <Plus size={18} className="mr-2" /> Add Student
+          <Plus size={18} className="mr-2" /> {t(lang, 'addStudent')}
         </Button>
       </div>
 
@@ -134,9 +137,9 @@ export function Students() {
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         {[
-          { label: 'Total Students', value: students.length, color: 'bg-blue-50 text-blue-700' },
-          { label: 'Active', value: students.filter(s => s.status === 'Active').length, color: 'bg-green-50 text-green-700' },
-          { label: 'This Month', value: students.filter(s => s.addedDate?.startsWith(new Date().toISOString().slice(0, 7))).length, color: 'bg-purple-50 text-purple-700' },
+          { label: t(lang, 'totalStudents'), value: students.length, color: 'bg-blue-50 text-blue-700' },
+          { label: t(lang, 'active'), value: students.filter(s => s.status === 'Active').length, color: 'bg-green-50 text-green-700' },
+          { label: t(lang, 'thisMonth'), value: students.filter(s => s.addedDate?.startsWith(new Date().toISOString().slice(0, 7))).length, color: 'bg-purple-50 text-purple-700' },
         ].map(stat => (
           <Card key={stat.label} className="p-4">
             <p className="text-sm text-slate-500">{stat.label}</p>
@@ -149,28 +152,28 @@ export function Students() {
         <div className="p-4 border-b border-slate-100 flex items-center justify-between">
           <div className="relative max-w-sm w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input type="text" placeholder="Search students..." value={search} onChange={e => setSearch(e.target.value)}
+            <input type="text" placeholder={t(lang, 'searchStudents')} value={search} onChange={e => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mauve-500/20" />
           </div>
-          <span className="text-sm text-slate-400 ml-4">{filtered.length} student{filtered.length !== 1 ? 's' : ''}</span>
+          <span className="text-sm text-slate-400 ml-4">{filtered.length}</span>
         </div>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Added Date</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead>{t(lang, 'name')}</TableHead>
+              <TableHead>{t(lang, 'email')}</TableHead>
+              <TableHead>{t(lang, 'addedDate')}</TableHead>
+              <TableHead>{t(lang, 'status')}</TableHead>
+              <TableHead className="text-right">{t(lang, 'actions')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow><TableCell colSpan={5} className="text-center py-10 text-slate-500">
-                <Loader className="animate-spin mx-auto mb-2" size={24} /> Loading students...
+                <Loader className="animate-spin mx-auto mb-2" size={24} /> {t(lang, 'loadingRequests')}
               </TableCell></TableRow>
             ) : filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={5} className="text-center text-slate-400 py-10">No students found.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={5} className="text-center text-slate-400 py-10">{t(lang, 'noStudents')}</TableCell></TableRow>
             ) : filtered.map(student => (
               <TableRow key={student.id}>
                 <TableCell className="font-medium text-slate-800 flex items-center gap-3">
@@ -193,41 +196,39 @@ export function Students() {
         </Table>
       </Card>
 
-      {/* Delete Confirm */}
-      <Modal isOpen={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="Confirm Delete">
+      <Modal isOpen={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title={t(lang, 'confirmDelete')}>
         <div className="space-y-4">
-          <p className="text-slate-600">Are you sure you want to remove this student?</p>
+          <p className="text-slate-600">{t(lang, 'confirmDeleteStudent')}</p>
           <div className="flex gap-3 pt-2">
-            <Button type="button" onClick={() => setDeleteConfirm(null)} className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200">Cancel</Button>
+            <Button type="button" onClick={() => setDeleteConfirm(null)} className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200">{t(lang, 'cancel')}</Button>
             <Button type="button" onClick={() => handleDelete(deleteConfirm)} className="flex-1 bg-red-600 hover:bg-red-700 text-white">
-              <Trash2 size={16} className="mr-2" /> Delete
+              <Trash2 size={16} className="mr-2" /> {t(lang, 'delete')}
             </Button>
           </div>
         </div>
       </Modal>
 
-      {/* Add Modal */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Add New Student">
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={t(lang, 'addNewStudent')}>
         <form onSubmit={handleAdd} className="space-y-4">
           {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">{error}</div>}
-          {[
-            { label: 'Full Name', key: 'name', type: 'text', placeholder: 'Student full name' },
-            { label: 'Email', key: 'email', type: 'email', placeholder: 'student@school.com' },
-            { label: 'Password', key: 'password', type: 'password', placeholder: 'Create password' },
-            { label: 'Grade (optional)', key: 'grade', type: 'text', placeholder: 'e.g. 10th Grade' },
-            { label: 'Class (optional)', key: 'studentClass', type: 'text', placeholder: 'e.g. 10-A' },
-          ].map(({ label, key, type, placeholder }) => (
-            <div key={key}>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
-              <input type={type} required={!['grade', 'studentClass'].includes(key)} value={formData[key]}
-                onChange={e => setFormData({ ...formData, [key]: e.target.value })}
-                className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20"
-                placeholder={placeholder} />
-            </div>
-          ))}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{t(lang, 'fullName')}</label>
+            <input type="text" required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })}
+              className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20" placeholder={t(lang, 'studentFullName')} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{t(lang, 'email')}</label>
+            <input type="email" required value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })}
+              className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20" placeholder="student@school.com" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{t(lang, 'password')}</label>
+            <input type="password" required value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })}
+              className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20" placeholder={t(lang, 'createPassword')} />
+          </div>
           <div className="flex gap-3 pt-4">
-            <Button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200">Cancel</Button>
-            <Button type="submit" className="flex-1" disabled={formLoading}>{formLoading ? 'Adding...' : 'Add Student'}</Button>
+            <Button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200">{t(lang, 'cancel')}</Button>
+            <Button type="submit" className="flex-1" disabled={formLoading}>{formLoading ? t(lang, 'adding') : t(lang, 'addStudent')}</Button>
           </div>
         </form>
       </Modal>

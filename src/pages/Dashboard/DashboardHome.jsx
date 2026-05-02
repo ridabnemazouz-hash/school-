@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Users, GraduationCap, BookOpen, TrendingUp, Calendar, ArrowUpRight, Bell, Target, Award } from 'lucide-react';
+import { 
+  Users, GraduationCap, BookOpen, TrendingUp, Calendar, 
+  ArrowUpRight, Bell, Target, Award, FileText, FileDown, 
+  MessageSquare, CreditCard, Settings 
+} from 'lucide-react';
 import { Card, CardContent } from '../../components/ui/Card';
 import { useAuth } from '../../context/AuthContext';
+import { useNavigate } from 'react-router-dom';
 import { 
   AreaChart, 
   Area, 
@@ -24,6 +29,7 @@ const API = 'http://localhost:8000';
 
 export function DashboardHome() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalStudents: 0,
     totalTeachers: 0,
@@ -51,6 +57,7 @@ export function DashboardHome() {
   };
 
   const isAdmin = user.role === 'Admin' || user.role === 'Super Admin';
+  const isTeacher = user.role === 'Teacher';
 
   return (
     <div className="space-y-8 animate-in fade-in duration-700">
@@ -80,6 +87,13 @@ export function DashboardHome() {
             <StatCard title="Active Teachers" value={stats.totalTeachers} icon={GraduationCap} color="rose" trend="+12" />
             <StatCard title="Current Classes" value={stats.totalClasses} icon={BookOpen} color="amber" trend="0%" />
             <StatCard title="Avg Attendance" value={`${stats.averageAttendance}%`} icon={TrendingUp} color="emerald" trend="+1.2%" />
+          </>
+        ) : isTeacher ? (
+          <>
+            <StatCard title="My Students" value="124" icon={Users} color="indigo" trend="+4 new" />
+            <StatCard title="My Classes" value="6" icon={BookOpen} color="rose" trend="Full schedule" />
+            <StatCard title="Pending Grading" value="18" icon={Target} color="amber" trend="Priority" />
+            <StatCard title="Today's Lessons" value="4" icon={Calendar} color="emerald" trend="2 remaining" />
           </>
         ) : (
           <>
@@ -135,10 +149,30 @@ export function DashboardHome() {
               <h3 className="text-lg font-bold text-slate-800">Quick Actions</h3>
             </div>
             <div className="p-4 grid grid-cols-2 gap-3">
-              <QuickAction icon={PlusIcon} label="Add Student" color="bg-indigo-50 text-indigo-600" />
-              <QuickAction icon={BookOpen} label="New Lesson" color="bg-rose-50 text-rose-600" />
-              <QuickAction icon={Calendar} label="Schedule" color="bg-amber-50 text-amber-600" />
-              <QuickAction icon={Bell} label="Notify All" color="bg-emerald-50 text-emerald-600" />
+              {isAdmin && (
+                <>
+                  <QuickAction icon={PlusIcon} label="Add Student" color="bg-indigo-50 text-indigo-600" onClick={() => navigate('/students')} />
+                  <QuickAction icon={GraduationCap} label="Add Teacher" color="bg-rose-50 text-rose-600" onClick={() => navigate('/teachers')} />
+                  <QuickAction icon={BookOpen} label="New Class" color="bg-amber-50 text-amber-600" onClick={() => navigate('/classes')} />
+                  <QuickAction icon={CreditCard} label="Payments" color="bg-emerald-50 text-emerald-600" onClick={() => navigate('/payments')} />
+                </>
+              )}
+              {isTeacher && (
+                <>
+                  <QuickAction icon={PlusIcon} label="Add Grade" color="bg-indigo-50 text-indigo-600" onClick={() => navigate('/grades')} />
+                  <QuickAction icon={BookOpen} label="My Classes" color="bg-rose-50 text-rose-600" onClick={() => navigate('/my-classes')} />
+                  <QuickAction icon={FileDown} label="Upload Content" color="bg-amber-50 text-amber-600" onClick={() => navigate('/content')} />
+                  <QuickAction icon={MessageSquare} label="Open Chat" color="bg-emerald-50 text-emerald-600" onClick={() => navigate('/chat')} />
+                </>
+              )}
+              {!isAdmin && !isTeacher && (
+                <>
+                  <QuickAction icon={Calendar} label="Planning" color="bg-indigo-50 text-indigo-600" onClick={() => navigate('/planning')} />
+                  <QuickAction icon={FileText} label="My Grades" color="bg-rose-50 text-rose-600" onClick={() => navigate('/grades')} />
+                  <QuickAction icon={MessageSquare} label="Chat Support" color="bg-amber-50 text-amber-600" onClick={() => navigate('/chat')} />
+                  <QuickAction icon={Settings} label="Settings" color="bg-emerald-50 text-emerald-600" onClick={() => navigate('/settings')} />
+                </>
+              )}
             </div>
           </Card>
 
@@ -203,9 +237,12 @@ function StatCard({ title, value, icon: Icon, color, trend }) {
   );
 }
 
-function QuickAction({ icon: Icon, label, color }) {
+function QuickAction({ icon: Icon, label, color, onClick }) {
   return (
-    <button className={`flex flex-col items-center justify-center p-4 rounded-2xl transition-all hover:scale-105 active:scale-95 ${color}`}>
+    <button 
+      onClick={onClick}
+      className={`flex flex-col items-center justify-center p-4 rounded-2xl transition-all hover:scale-105 active:scale-95 ${color}`}
+    >
       <Icon size={20} />
       <span className="text-[10px] font-bold mt-2 text-center leading-tight">{label}</span>
     </button>

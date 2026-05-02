@@ -1,15 +1,18 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { School, Mail, Lock } from 'lucide-react';
+import { School, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { Button } from '../components/ui/Button';
+import { useLanguage } from '../context/LanguageContext';
+import { t } from '../i18n/translations';
 
 export function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   const { login } = useAuth();
+  const { lang, setLang } = useLanguage();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -29,81 +32,144 @@ export function Login() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-50 relative overflow-hidden">
-      {/* Background decoration */}
-      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-mauve-300 rounded-full mix-blend-multiply filter blur-[100px] opacity-50 animate-blob"></div>
-      <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-300 rounded-full mix-blend-multiply filter blur-[100px] opacity-50 animate-blob animation-delay-2000"></div>
+      {/* Animated background blobs */}
+      <div className="absolute top-[-15%] left-[-10%] w-[50%] h-[50%] bg-mauve-400/30 rounded-full mix-blend-multiply filter blur-3xl animate-blob"></div>
+      <div className="absolute top-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-300/30 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-2000"></div>
+      <div className="absolute bottom-[-15%] left-[20%] w-[45%] h-[45%] bg-indigo-300/20 rounded-full mix-blend-multiply filter blur-3xl animate-blob animation-delay-4000"></div>
 
-      <div className="w-full max-w-md p-8 bg-white rounded-2xl shadow-xl z-10 border border-slate-100">
-        <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 bg-mauve-100 rounded-2xl flex items-center justify-center mb-4">
-            <School className="text-mauve-600" size={32} />
-          </div>
-          <h2 className="text-2xl font-bold text-slate-800">Welcome Back</h2>
-          <p className="text-slate-500 text-sm mt-1">Sign in to your EduSaaS account</p>
-        </div>
-
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-lg">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleSubmit} className="space-y-5">
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Email Address</label>
-            <div className="relative">
-              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input 
-                type="email" 
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20 focus:border-mauve-500 transition-all text-sm"
-                required
-              />
-            </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
-            <div className="relative">
-              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-              <input 
-                type="password" 
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20 focus:border-mauve-500 transition-all text-sm"
-                required
-              />
-            </div>
-          </div>
-          <div className="flex items-center justify-between mt-2">
-            <div className="flex items-center">
-              <input id="remember" type="checkbox" className="w-4 h-4 text-mauve-600 border-slate-300 rounded focus:ring-mauve-500" />
-              <label htmlFor="remember" className="ml-2 text-sm text-slate-600">Remember me</label>
-            </div>
-            <a href="#" className="text-sm font-medium text-mauve-600 hover:text-mauve-500">Forgot Password?</a>
-          </div>
+      {/* Glass card */}
+      <div className="relative w-full max-w-md mx-4">
+        <div className="bg-white/80 backdrop-blur-xl rounded-3xl shadow-2xl shadow-slate-200/50 border border-white/50 p-8">
           
-          <Button type="submit" className="w-full mt-4" size="lg" disabled={loading}>
-            {loading ? (
-              <span className="flex items-center justify-center gap-2">
-                <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-                </svg>
-                Signing in...
-              </span>
-            ) : 'Sign In'}
-          </Button>
-        </form>
+          {/* Language toggle */}
+          <div className="flex justify-end mb-6">
+            <div className="flex bg-slate-100/80 rounded-lg p-0.5">
+              {['en', 'fr'].map((l) => (
+                <button
+                  key={l}
+                  onClick={() => setLang(l)}
+                  className={`px-3 py-1 text-xs font-bold rounded-md transition-all ${
+                    lang === l
+                      ? 'bg-white text-mauve-600 shadow-sm'
+                      : 'text-slate-400 hover:text-slate-600'
+                  }`}
+                >
+                  {l.toUpperCase()}
+                </button>
+              ))}
+            </div>
+          </div>
 
-        <div className="mt-6 text-center text-sm text-slate-500">
-          <p className="mb-4">
-            Don't have an account? <a href="/register" className="text-mauve-600 font-medium hover:underline">Sign up</a>
-          </p>
-          <p>Demo Credentials:</p>
-          <p className="mt-1">super@school.com | password</p>
+          {/* Logo */}
+          <div className="flex flex-col items-center mb-8">
+            <div className="w-16 h-16 bg-gradient-to-br from-mauve-500 to-mauve-700 rounded-2xl flex items-center justify-center shadow-lg shadow-mauve-200 mb-4">
+              <School className="text-white" size={28} />
+            </div>
+            <h2 className="text-2xl font-bold text-slate-800">{t(lang, 'welcomeBack')}</h2>
+            <p className="text-sm text-slate-500 mt-1">{t(lang, 'signInToAccount')}</p>
+          </div>
+
+          {/* Error */}
+          {error && (
+            <div className="mb-5 p-3 bg-red-50 border border-red-200 text-red-600 text-sm rounded-xl text-center">
+              {error}
+            </div>
+          )}
+
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wider">{t(lang, 'email')}</label>
+              <div className="relative">
+                <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input 
+                  type="email" 
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-mauve-500/20 focus:border-mauve-500 transition-all placeholder:text-slate-400"
+                  placeholder="admin@school.com"
+                  required
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-600 mb-1.5 uppercase tracking-wider">{t(lang, 'password')}</label>
+              <div className="relative">
+                <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+                <input 
+                  type={showPassword ? 'text' : 'password'} 
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full pl-10 pr-11 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-mauve-500/20 focus:border-mauve-500 transition-all placeholder:text-slate-400"
+                  placeholder="••••••••"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition-colors"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-1">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" className="w-4 h-4 rounded border-slate-300 text-mauve-600 focus:ring-mauve-500" />
+                <span className="text-sm text-slate-600">{t(lang, 'rememberMe')}</span>
+              </label>
+              <a href="#" className="text-sm font-medium text-mauve-600 hover:text-mauve-700 transition-colors">{t(lang, 'forgotPassword')}</a>
+            </div>
+
+            <button 
+              type="submit" 
+              disabled={loading}
+              className="w-full py-3 bg-gradient-to-r from-mauve-600 to-mauve-700 hover:from-mauve-700 hover:to-mauve-800 text-white font-semibold rounded-xl shadow-lg shadow-mauve-200 transition-all disabled:opacity-50 active:scale-[0.98] mt-2"
+            >
+              {loading ? (
+                <span className="flex items-center justify-center gap-2">
+                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  {t(lang, 'signingIn')}
+                </span>
+              ) : t(lang, 'signIn')}
+            </button>
+          </form>
+
+          {/* Footer */}
+          <div className="mt-6 text-center text-sm text-slate-500">
+            <p>{t(lang, 'noAccount')}{' '}
+              <a href="/register" className="text-mauve-600 font-semibold hover:text-mauve-700 transition-colors">
+                {t(lang, 'signUp')}
+              </a>
+            </p>
+          </div>
+
+          {/* Demo credentials */}
+          <div className="mt-6 p-4 bg-slate-50 rounded-xl border border-slate-100">
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">{t(lang, 'demoCredentials')}</p>
+            <div className="flex gap-2 text-xs font-mono">
+              <span className="px-2.5 py-1 bg-white border border-slate-200 rounded-md text-slate-600">super@school.com</span>
+              <span className="px-2.5 py-1 bg-white border border-slate-200 rounded-md text-slate-600">password</span>
+            </div>
+          </div>
         </div>
       </div>
+
+      <style>{`
+        @keyframes blob {
+          0%, 100% { transform: translate(0, 0) scale(1); }
+          33% { transform: translate(30px, -50px) scale(1.1); }
+          66% { transform: translate(-20px, 20px) scale(0.9); }
+        }
+        .animate-blob { animation: blob 7s infinite; }
+        .animation-delay-2000 { animation-delay: 2s; }
+        .animation-delay-4000 { animation-delay: 4s; }
+      `}</style>
     </div>
   );
 }

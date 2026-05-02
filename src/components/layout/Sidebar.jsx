@@ -1,7 +1,9 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useLanguage } from '../../context/LanguageContext';
 import { cn } from '../../utils';
+import { t } from '../../i18n/translations';
 import { 
   LayoutDashboard, Users, GraduationCap, BookOpen, FileText, 
   CalendarCheck, Settings, LogOut, School, Bus, UserPlus, FileDown, MessageSquare, Calendar, CreditCard
@@ -9,35 +11,55 @@ import {
 
 export function Sidebar() {
   const { user, logout } = useAuth();
+  const { lang } = useLanguage();
 
   const getNavItems = () => {
+    const navKeys = {
+      dashboard: 'dashboard',
+      admins: 'admins',
+      accounts: 'accounts',
+      students: 'students',
+      teachers: 'teachers',
+      parents: 'parents',
+      classes: 'classes',
+      subjects: 'subjects',
+      transport: 'transport',
+      myClasses: 'myClasses',
+      myStudents: 'myStudents',
+      planning: 'planning',
+      payments: 'payments',
+      grades: 'grades',
+      attendance: 'attendance',
+      lessons: 'lessons',
+      chat: 'chat',
+      settings: 'settings',
+      logout: 'logout',
+    };
+
     const items = [
-      { name: 'Dashboard', path: '/', icon: LayoutDashboard, roles: ['Super Admin', 'Admin', 'Teacher', 'Student', 'Parent'] },
-      { name: 'Admins', path: '/admins', icon: Users, roles: ['Super Admin', 'Admin'] },
+      { name: t(lang, navKeys.dashboard), path: '/', icon: LayoutDashboard, roles: ['Super Admin', 'Admin', 'Teacher', 'Student', 'Parent'] },
       
-      // Admin
-      { name: 'Students', path: '/students', icon: Users, roles: ['Admin'] },
-      { name: 'Teachers', path: '/teachers', icon: GraduationCap, roles: ['Admin'] },
-      { name: 'Parents', path: '/parents', icon: Users, roles: ['Admin'] },
-      { name: 'Classes', path: '/classes', icon: BookOpen, roles: ['Admin'] },
-      { name: 'Subjects', path: '/subjects', icon: BookOpen, roles: ['Admin'] },
-      { name: 'Transport', path: '/transport', icon: Bus, roles: ['Admin'] },
-      { name: 'Accounts', path: '/accounts', icon: UserPlus, roles: ['Admin'] },
-
-      // Teacher
-      { name: 'My Classes', path: '/my-classes', icon: BookOpen, roles: ['Teacher'] },
-      { name: 'My Students', path: '/my-students', icon: Users, roles: ['Teacher'] },
+      { name: t(lang, navKeys.admins), path: '/admins', icon: Users, roles: ['Super Admin'] },
+      { name: t(lang, navKeys.accounts), path: '/accounts', icon: UserPlus, roles: ['Super Admin'] },
       
-      // Student & Parent
-      { name: 'Planning', path: '/planning', icon: Calendar, roles: ['Student', 'Parent'] },
-      { name: 'Payments', path: '/payments', icon: CreditCard, roles: ['Admin', 'Parent'] },
+      { name: t(lang, navKeys.students), path: '/students', icon: Users, roles: ['Super Admin', 'Admin'] },
+      { name: t(lang, navKeys.teachers), path: '/teachers', icon: GraduationCap, roles: ['Super Admin', 'Admin'] },
+      { name: t(lang, navKeys.parents), path: '/parents', icon: Users, roles: ['Super Admin', 'Admin'] },
+      { name: t(lang, navKeys.classes), path: '/classes', icon: BookOpen, roles: ['Super Admin', 'Admin'] },
+      { name: t(lang, navKeys.subjects), path: '/subjects', icon: BookOpen, roles: ['Super Admin', 'Admin'] },
+      { name: t(lang, navKeys.transport), path: '/transport', icon: Bus, roles: ['Super Admin', 'Admin'] },
 
-      // Shared
-      { name: 'Grades', path: '/grades', icon: FileText, roles: ['Admin', 'Teacher', 'Student', 'Parent'] },
-      { name: 'Attendance', path: '/attendance', icon: CalendarCheck, roles: ['Admin', 'Teacher', 'Student', 'Parent'] },
-      { name: 'Lessons & Devoirs', path: '/content', icon: FileDown, roles: ['Admin', 'Teacher', 'Student', 'Parent'] },
-      { name: 'Chat', path: '/chat', icon: MessageSquare, roles: ['Super Admin', 'Admin', 'Teacher', 'Student', 'Parent'] },
-      { name: 'Settings', path: '/settings', icon: Settings, roles: ['Super Admin', 'Admin', 'Teacher', 'Student', 'Parent'] },
+      { name: t(lang, navKeys.myClasses), path: '/my-classes', icon: BookOpen, roles: ['Teacher'] },
+      { name: t(lang, navKeys.myStudents), path: '/my-students', icon: Users, roles: ['Teacher'] },
+      
+      { name: t(lang, navKeys.planning), path: '/planning', icon: Calendar, roles: ['Student', 'Parent'] },
+      { name: t(lang, navKeys.payments), path: '/payments', icon: CreditCard, roles: ['Super Admin', 'Admin', 'Parent'] },
+
+      { name: t(lang, navKeys.grades), path: '/grades', icon: FileText, roles: ['Super Admin', 'Admin', 'Teacher', 'Student', 'Parent'] },
+      { name: t(lang, navKeys.attendance), path: '/attendance', icon: CalendarCheck, roles: ['Super Admin', 'Admin', 'Teacher', 'Student', 'Parent'] },
+      { name: t(lang, navKeys.lessons), path: '/content', icon: FileDown, roles: ['Super Admin', 'Admin', 'Teacher', 'Student', 'Parent'] },
+      { name: t(lang, navKeys.chat), path: '/chat', icon: MessageSquare, roles: ['Super Admin', 'Admin', 'Teacher', 'Student', 'Parent'] },
+      { name: t(lang, navKeys.settings), path: '/settings', icon: Settings, roles: ['Super Admin', 'Admin', 'Teacher', 'Student', 'Parent'] },
     ];
     return items.filter(item => item.roles.includes(user?.role));
   };
@@ -76,7 +98,7 @@ export function Sidebar() {
           className="flex items-center w-full px-3 py-2.5 text-slate-400 hover:text-red-400 hover:bg-red-400/10 rounded-lg transition-colors font-medium"
         >
           <LogOut className="mr-3" size={20} />
-          Logout
+          {t(lang, 'logout')}
         </button>
       </div>
     </aside>

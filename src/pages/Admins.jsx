@@ -1,14 +1,18 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '../components/ui/Table';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { Plus, Search, MoreVertical, ShieldAlert, Trash2, UserCheck, UserX, Loader } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
+import { useAuth } from '../context/AuthContext';
+import { t } from '../i18n/translations';
 
 const API = 'http://localhost:8000';
 
-// Dropdown menu component
 function ActionMenu({ admin, onDelete, onToggleStatus }) {
+  const { lang } = useLanguage();
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
 
@@ -19,6 +23,8 @@ function ActionMenu({ admin, onDelete, onToggleStatus }) {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const isSuperAdmin = admin.role === 'Super Admin';
 
   return (
     <div className="relative" ref={ref}>
@@ -31,23 +37,30 @@ function ActionMenu({ admin, onDelete, onToggleStatus }) {
 
       {open && (
         <div className="absolute right-0 mt-1 w-44 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1">
-          <button
-            onClick={() => { onToggleStatus(admin.id); setOpen(false); }}
-            className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-          >
-            {admin.status === 'Active'
-              ? <><UserX size={15} className="text-amber-500" /> Deactivate</>
-              : <><UserCheck size={15} className="text-green-500" /> Activate</>
-            }
-          </button>
-          <div className="border-t border-slate-100 my-1" />
-          <button
-            onClick={() => { onDelete(admin.id); setOpen(false); }}
-            className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-          >
-            <Trash2 size={15} />
-            Delete
-          </button>
+          {!isSuperAdmin && (
+            <>
+              <button
+                onClick={() => { onToggleStatus(admin.id); setOpen(false); }}
+                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
+              >
+                {admin.status === 'Active'
+                  ? <><UserX size={15} className="text-amber-500" /> {t(lang, 'deactivate')}</>
+                  : <><UserCheck size={15} className="text-green-500" /> {t(lang, 'activate')}</>
+                }
+              </button>
+              <div className="border-t border-slate-100 my-1" />
+              <button
+                onClick={() => { onDelete(admin.id); setOpen(false); }}
+                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+              >
+                <Trash2 size={15} />
+                {t(lang, 'delete')}
+              </button>
+            </>
+          )}
+          {isSuperAdmin && (
+            <div className="px-4 py-2 text-xs text-slate-400 italic">Super Admin — Protected</div>
+          )}
         </div>
       )}
     </div>
@@ -55,6 +68,15 @@ function ActionMenu({ admin, onDelete, onToggleStatus }) {
 }
 
 export function Admins() {
+  const { lang } = useLanguage();
+  const { user } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (user && user.role !== 'Super Admin') {
+      navigate('/');
+    }
+  }, [user, navigate]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'Admin' });
   const [admins, setAdmins] = useState([]);
@@ -65,7 +87,6 @@ export function Admins() {
   const [search, setSearch] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState(null);
 
-  // ✅ جيب الأدمينز من البيكاند عند كل تحميل
   useEffect(() => {
     fetchAdmins();
   }, []);
@@ -73,18 +94,15 @@ export function Admins() {
   const fetchAdmins = async () => {
     try {
       const token = localStorage.getItem('token');
-      console.log('Fetching admins from:', `${API}/auth/admins`);
       const res = await fetch(`${API}/auth/admins`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (res.ok) {
         const data = await res.json();
         setAdmins(data);
-      } else {
-        console.error('Fetch admins failed:', res.status);
       }
     } catch (err) {
-      console.error('Fetch admins error:', err);
+      console.error(err);
     } finally {
       setLoading(false);
     }
@@ -96,6 +114,11 @@ export function Admins() {
   );
 
   const handleDelete = async (id) => {
+    const admin = admins.find(a => a.id === id);
+    if (admin?.role === 'Super Admin') {
+      setError('Super Admin cannot be deleted');
+      return;
+    }
     try {
       const token = localStorage.getItem('token');
       await fetch(`${API}/auth/admins/${id}`, {
@@ -103,11 +126,12 @@ export function Admins() {
         headers: { 'Authorization': `Bearer ${token}` }
       });
     } catch (err) {
-      console.warn('Delete API error:', err.message);
+      console.warn(err.message);
     } finally {
       setAdmins(prev => prev.filter(a => a.id !== id));
       setDeleteConfirm(null);
-      showSuccess('🗑️ Admin deleted successfully!');
+      showSuccess(t(lang, 'adminDeleted'));
+      fetchAdmins();
     }
   };
 
@@ -122,7 +146,6 @@ export function Admins() {
         const data = await res.json();
         setAdmins(prev => prev.map(a => a.id === id ? { ...a, status: data.status } : a));
       } else {
-        // fallback local toggle
         setAdmins(prev => prev.map(a =>
           a.id === id ? { ...a, status: a.status === 'Active' ? 'Inactive' : 'Active' } : a
         ));
@@ -132,6 +155,7 @@ export function Admins() {
         a.id === id ? { ...a, status: a.status === 'Active' ? 'Inactive' : 'Active' } : a
       ));
     }
+    showSuccess(t(lang, 'statusToggled'));
   };
 
   const handleAddAdmin = async (e) => {
@@ -152,7 +176,9 @@ export function Admins() {
 
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.detail || 'Failed to add admin');
+        const errMsg = err.detail || t(lang, 'failedToAddAdmin');
+        setError(errMsg);
+        return;
       }
 
       const data = await res.json();
@@ -165,9 +191,10 @@ export function Admins() {
         avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name)}&background=6366f1&color=fff`
       };
       setAdmins(prev => [...prev, newAdmin]);
-      showSuccess('✅ Admin added successfully!');
+      showSuccess(t(lang, 'adminAdded'));
       setIsModalOpen(false);
       setFormData({ name: '', email: '', password: '', role: 'Admin' });
+      fetchAdmins();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -184,12 +211,12 @@ export function Admins() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Admins Management</h1>
-          <p className="text-slate-500 mt-1">Create and manage admin accounts for daily operations.</p>
+          <h1 className="text-2xl font-bold text-slate-800">{t(lang, 'adminManagement')}</h1>
+          <p className="text-slate-500 mt-1">{t(lang, 'adminManagementDesc')}</p>
         </div>
         <Button className="shrink-0" onClick={() => setIsModalOpen(true)}>
           <Plus size={18} className="mr-2" />
-          Add Admin
+          {t(lang, 'addAdmin')}
         </Button>
       </div>
 
@@ -200,7 +227,7 @@ export function Admins() {
       <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 flex items-start">
         <ShieldAlert className="text-blue-500 mr-3 shrink-0 mt-0.5" size={20} />
         <p className="text-sm text-blue-800">
-          <strong>Note:</strong> Admins are responsible for managing Students, Teachers, and Parents. You (Super Admin) only oversee the platform and these admins.
+          <strong>{t(lang, 'note')}:</strong> {t(lang, 'adminsNote')}
         </p>
       </div>
 
@@ -210,22 +237,22 @@ export function Admins() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input
               type="text"
-              placeholder="Search admins by name or email..."
+              placeholder={t(lang, 'searchAdmins')}
               value={search}
               onChange={e => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mauve-500/20 focus:border-mauve-500"
             />
           </div>
-          <span className="text-sm text-slate-400 ml-4">{filteredAdmins.length} admin{filteredAdmins.length !== 1 ? 's' : ''}</span>
+          <span className="text-sm text-slate-400 ml-4">{filteredAdmins.length}</span>
         </div>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Admin Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead>Added Date</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead>{t(lang, 'name')}</TableHead>
+              <TableHead>{t(lang, 'email')}</TableHead>
+              <TableHead>{t(lang, 'status')}</TableHead>
+              <TableHead>{t(lang, 'addedDate')}</TableHead>
+              <TableHead className="text-right">{t(lang, 'actions')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -233,12 +260,12 @@ export function Admins() {
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-10 text-slate-500">
                   <Loader className="animate-spin mx-auto mb-2" size={24} />
-                  Loading admins...
+                  {t(lang, 'loadingRequests')}
                 </TableCell>
               </TableRow>
             ) : filteredAdmins.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-slate-400 py-10">No admins found.</TableCell>
+                <TableCell colSpan={5} className="text-center text-slate-400 py-10">{t(lang, 'noAdmins')}</TableCell>
               </TableRow>
             ) : (
               filteredAdmins.map((admin) => (
@@ -254,6 +281,9 @@ export function Admins() {
                     }`}>
                       {admin.status}
                     </span>
+                    {admin.role === 'Super Admin' && (
+                      <span className="ml-2 px-2 py-0.5 bg-mauve-100 text-mauve-700 rounded text-[10px] font-bold">Super Admin</span>
+                    )}
                   </TableCell>
                   <TableCell className="text-slate-500">{admin.addedDate}</TableCell>
                   <TableCell className="text-right">
@@ -270,51 +300,49 @@ export function Admins() {
         </Table>
       </Card>
 
-      {/* Delete Confirmation Modal */}
-      <Modal isOpen={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="Confirm Delete">
+      <Modal isOpen={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title={t(lang, 'confirmDelete')}>
         <div className="space-y-4">
-          <p className="text-slate-600">Are you sure you want to delete this admin? This action cannot be undone.</p>
+          <p className="text-slate-600">{t(lang, 'confirmDeleteAdmin')}</p>
           <div className="flex gap-3 pt-2">
             <Button type="button" onClick={() => setDeleteConfirm(null)} className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200">
-              Cancel
+              {t(lang, 'cancel')}
             </Button>
             <Button type="button" onClick={() => handleDelete(deleteConfirm)} className="flex-1 bg-red-600 hover:bg-red-700 text-white">
               <Trash2 size={16} className="mr-2" />
-              Delete
+              {t(lang, 'delete')}
             </Button>
           </div>
         </div>
       </Modal>
 
-      {/* Add Admin Modal */}
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Add New Admin">
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={t(lang, 'addNewAdmin')}>
         <form onSubmit={handleAddAdmin} className="space-y-4">
           {error && (
             <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">{error}</div>
           )}
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Full Name</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{t(lang, 'fullName')}</label>
             <input type="text" required value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20 focus:border-mauve-500"
-              placeholder="Enter admin name" />
+              placeholder={t(lang, 'enterAdminName')} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Email</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{t(lang, 'email')}</label>
             <input type="email" required value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20 focus:border-mauve-500"
               placeholder="admin@school.com" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Password</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{t(lang, 'password')}</label>
             <input type="password" required value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20 focus:border-mauve-500"
-              placeholder="Enter password" />
+              placeholder={t(lang, 'enterPassword')} />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">Role</label>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{t(lang, 'role')}</label>
             <select value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })}
               className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20 focus:border-mauve-500">
               <option value="Admin">Admin</option>
@@ -323,10 +351,10 @@ export function Admins() {
           </div>
           <div className="flex gap-3 pt-4">
             <Button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200">
-              Cancel
+              {t(lang, 'cancel')}
             </Button>
             <Button type="submit" className="flex-1" disabled={formLoading}>
-              {formLoading ? 'Adding...' : 'Add Admin'}
+              {formLoading ? t(lang, 'adding') : t(lang, 'addAdmin')}
             </Button>
           </div>
         </form>

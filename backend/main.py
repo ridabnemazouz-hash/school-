@@ -5,6 +5,7 @@ import uvicorn
 from routes.auth import router as auth_router
 from routes.students import router as students_router
 from routes.chat import router as chat_router
+from routes.classes import router as classes_router
 from database import engine, Base
 
 # Create tables
@@ -24,6 +25,7 @@ app.add_middleware(
 app.include_router(auth_router)
 app.include_router(students_router)
 app.include_router(chat_router)
+app.include_router(classes_router)
 
 @app.get("/")
 def read_root():

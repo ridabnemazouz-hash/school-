@@ -3,10 +3,13 @@ import { Card } from '../components/ui/Card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '../components/ui/Table';
 import { Button } from '../components/ui/Button';
 import { Check, X, ShieldAlert, Loader } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
+import { t } from '../i18n/translations';
 
 const API = 'http://localhost:8000';
 
 export function Accounts() {
+  const { lang } = useLanguage();
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState({});
@@ -44,19 +47,17 @@ export function Accounts() {
       const token = localStorage.getItem('token');
       const res = await fetch(`${API}/auth/approve/${id}`, {
         method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}` },
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!res.ok) {
         const errData = await res.json();
-        throw new Error(errData.detail || 'Failed to approve');
+        throw new Error(errData.detail || t(lang, 'failedToApprove'));
       }
+      setRequests(requests.filter((r) => r.id !== id));
+      setSuccess(t(lang, 'userApproved'));
     } catch (err) {
-      // silently fallback — still remove from UI
-      console.warn('Approve API error:', err.message);
+      setError(err.message);
     } finally {
-      setRequests(prev => prev.filter((r) => r.id !== id));
-      setSuccess('✅ User approved successfully!');
-      setTimeout(() => setSuccess(''), 3000);
       setActionLoading((prev) => ({ ...prev, [id]: null }));
     }
   };
@@ -69,19 +70,17 @@ export function Accounts() {
       const token = localStorage.getItem('token');
       const res = await fetch(`${API}/auth/reject/${id}`, {
         method: 'PUT',
-        headers: { 'Authorization': `Bearer ${token}` },
+        headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!res.ok) {
         const errData = await res.json();
-        throw new Error(errData.detail || 'Failed to reject');
+        throw new Error(errData.detail || t(lang, 'failedToReject'));
       }
+      setRequests(requests.filter((r) => r.id !== id));
+      setSuccess(t(lang, 'userRejected'));
     } catch (err) {
-      // silently fallback — still remove from UI
-      console.warn('Reject API error:', err.message);
+      setError(err.message);
     } finally {
-      setRequests(prev => prev.filter((r) => r.id !== id));
-      setSuccess('🗑️ User rejected successfully!');
-      setTimeout(() => setSuccess(''), 3000);
       setActionLoading((prev) => ({ ...prev, [id]: null }));
     }
   };
@@ -90,8 +89,8 @@ export function Accounts() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Accounts & Permissions</h1>
-          <p className="text-slate-500 mt-1">Review pending registrations and manage user access.</p>
+          <h1 className="text-2xl font-bold text-slate-800">{t(lang, 'accountsPermissions')}</h1>
+          <p className="text-slate-500 mt-1">{t(lang, 'accountsDesc')}</p>
         </div>
       </div>
 
@@ -105,22 +104,22 @@ export function Accounts() {
       <div className="bg-orange-50 border border-orange-100 rounded-lg p-4 flex items-start">
         <ShieldAlert className="text-orange-500 mr-3 shrink-0 mt-0.5" size={20} />
         <p className="text-sm text-orange-800">
-          <strong>Action Required:</strong> You have {requests.length} new registration request(s). Please review and accept/reject them to grant access to the platform.
+          <strong>{t(lang, 'actionRequired')}</strong> {t(lang, 'actionRequiredDesc', { count: requests.length })}
         </p>
       </div>
 
       <Card>
         <div className="p-4 border-b border-slate-100">
-          <h3 className="text-lg font-semibold text-slate-800">Pending Requests</h3>
+          <h3 className="text-lg font-semibold text-slate-800">{t(lang, 'pendingRequests')}</h3>
         </div>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Requested Role</TableHead>
-              <TableHead>Date</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead>{t(lang, 'name')}</TableHead>
+              <TableHead>{t(lang, 'email')}</TableHead>
+              <TableHead>{t(lang, 'requestedRole')}</TableHead>
+              <TableHead>{t(lang, 'date')}</TableHead>
+              <TableHead className="text-right">{t(lang, 'actions')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -128,13 +127,13 @@ export function Accounts() {
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-8 text-slate-500">
                   <Loader className="animate-spin mx-auto mb-2" size={24} />
-                  Loading requests...
+                  {t(lang, 'loadingRequests')}
                 </TableCell>
               </TableRow>
             ) : requests.length === 0 ? (
               <TableRow>
                 <TableCell colSpan={5} className="text-center py-8 text-slate-500">
-                  No pending requests at the moment.
+                  {t(lang, 'noPendingRequests')}
                 </TableCell>
               </TableRow>
             ) : (
@@ -165,7 +164,7 @@ export function Accounts() {
                           <Loader className="animate-spin" size={18} />
                         ) : (
                           <>
-                            <X size={18} className="mr-1" /> Reject
+                            <X size={18} className="mr-1" /> {t(lang, 'reject')}
                           </>
                         )}
                       </Button>
@@ -180,7 +179,7 @@ export function Accounts() {
                           <Loader className="animate-spin" size={18} />
                         ) : (
                           <>
-                            <Check size={18} className="mr-1" /> Accept
+                            <Check size={18} className="mr-1" /> {t(lang, 'accept')}
                           </>
                         )}
                       </Button>

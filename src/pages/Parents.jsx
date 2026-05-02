@@ -4,6 +4,8 @@ import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '.
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
 import { Plus, Search, MoreVertical, Trash2, Loader, Users } from 'lucide-react';
+import { useLanguage } from '../context/LanguageContext';
+import { t } from '../i18n/translations';
 
 const API = 'http://localhost:8000';
 
@@ -25,7 +27,7 @@ function ActionMenu({ user, onDelete }) {
         <div className="absolute right-0 mt-1 w-44 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1">
           <button onClick={() => { onDelete(user.id); setOpen(false); }}
             className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
-            <Trash2 size={15} /> Delete
+            <Trash2 size={15} /> {t(useLanguage().lang, 'delete')}
           </button>
         </div>
       )}
@@ -34,6 +36,7 @@ function ActionMenu({ user, onDelete }) {
 }
 
 export function Parents() {
+  const { lang } = useLanguage();
   const [parents, setParents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -88,7 +91,7 @@ export function Parents() {
         addedDate: new Date().toISOString().split('T')[0],
         avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name)}&background=0891b2&color=fff`
       }]);
-      showSuccess('✅ Parent added successfully!');
+      showSuccess(t(lang, 'userApproved'));
       setIsModalOpen(false);
       setFormData({ name: '', email: '', password: '', childName: '' });
     } catch (err) {
@@ -105,7 +108,7 @@ export function Parents() {
     } catch {}
     setParents(prev => prev.filter(p => p.id !== id));
     setDeleteConfirm(null);
-    showSuccess('🗑️ Parent removed!');
+    showSuccess(t(lang, 'userRejected'));
   };
 
   const filtered = parents.filter(p =>
@@ -118,11 +121,11 @@ export function Parents() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-800">Parents Management</h1>
-          <p className="text-slate-500 mt-1">Manage all registered parents and their linked children.</p>
+          <h1 className="text-2xl font-bold text-slate-800">{t(lang, 'parentManagement')}</h1>
+          <p className="text-slate-500 mt-1">{t(lang, 'parentManagementDesc')}</p>
         </div>
         <Button className="shrink-0" onClick={() => setIsModalOpen(true)}>
-          <Plus size={18} className="mr-2" /> Add Parent
+          <Plus size={18} className="mr-2" /> {t(lang, 'addParent')}
         </Button>
       </div>
 
@@ -130,9 +133,9 @@ export function Parents() {
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
         {[
-          { label: 'Total Parents', value: parents.length, color: 'text-cyan-700' },
-          { label: 'Active', value: parents.filter(p => p.status === 'Active').length, color: 'text-green-700' },
-          { label: 'This Month', value: parents.filter(p => p.addedDate?.startsWith(new Date().toISOString().slice(0, 7))).length, color: 'text-blue-700' },
+          { label: t(lang, 'totalParents'), value: parents.length, color: 'text-cyan-700' },
+          { label: t(lang, 'active'), value: parents.filter(p => p.status === 'Active').length, color: 'text-green-700' },
+          { label: t(lang, 'thisMonth'), value: parents.filter(p => p.addedDate?.startsWith(new Date().toISOString().slice(0, 7))).length, color: 'text-blue-700' },
         ].map(stat => (
           <Card key={stat.label} className="p-4">
             <p className="text-sm text-slate-500">{stat.label}</p>
@@ -145,29 +148,29 @@ export function Parents() {
         <div className="p-4 border-b border-slate-100 flex items-center justify-between">
           <div className="relative max-w-sm w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input type="text" placeholder="Search parents or children..." value={search} onChange={e => setSearch(e.target.value)}
+            <input type="text" placeholder={t(lang, 'searchParents')} value={search} onChange={e => setSearch(e.target.value)}
               className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mauve-500/20" />
           </div>
-          <span className="text-sm text-slate-400 ml-4">{filtered.length} parent{filtered.length !== 1 ? 's' : ''}</span>
+          <span className="text-sm text-slate-400 ml-4">{filtered.length}</span>
         </div>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Parent Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Child Name</TableHead>
-              <TableHead>Added Date</TableHead>
-              <TableHead>Status</TableHead>
-              <TableHead className="text-right">Actions</TableHead>
+              <TableHead>{t(lang, 'name')}</TableHead>
+              <TableHead>{t(lang, 'email')}</TableHead>
+              <TableHead>{t(lang, 'childName')}</TableHead>
+              <TableHead>{t(lang, 'addedDate')}</TableHead>
+              <TableHead>{t(lang, 'status')}</TableHead>
+              <TableHead className="text-right">{t(lang, 'actions')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow><TableCell colSpan={6} className="text-center py-10 text-slate-500">
-                <Loader className="animate-spin mx-auto mb-2" size={24} /> Loading parents...
+                <Loader className="animate-spin mx-auto mb-2" size={24} /> {t(lang, 'loadingRequests')}
               </TableCell></TableRow>
             ) : filtered.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="text-center text-slate-400 py-10">No parents found.</TableCell></TableRow>
+              <TableRow><TableCell colSpan={6} className="text-center text-slate-400 py-10">{t(lang, 'noParents')}</TableCell></TableRow>
             ) : filtered.map(parent => (
               <TableRow key={parent.id}>
                 <TableCell className="font-medium text-slate-800 flex items-center gap-3">
@@ -197,38 +200,44 @@ export function Parents() {
         </Table>
       </Card>
 
-      <Modal isOpen={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title="Confirm Delete">
+      <Modal isOpen={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title={t(lang, 'confirmDelete')}>
         <div className="space-y-4">
-          <p className="text-slate-600">Are you sure you want to remove this parent?</p>
+          <p className="text-slate-600">{t(lang, 'confirmDeleteParent')}</p>
           <div className="flex gap-3 pt-2">
-            <Button type="button" onClick={() => setDeleteConfirm(null)} className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200">Cancel</Button>
+            <Button type="button" onClick={() => setDeleteConfirm(null)} className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200">{t(lang, 'cancel')}</Button>
             <Button type="button" onClick={() => handleDelete(deleteConfirm)} className="flex-1 bg-red-600 hover:bg-red-700 text-white">
-              <Trash2 size={16} className="mr-2" /> Delete
+              <Trash2 size={16} className="mr-2" /> {t(lang, 'delete')}
             </Button>
           </div>
         </div>
       </Modal>
 
-      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Add New Parent">
+      <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={t(lang, 'addNewParent')}>
         <form onSubmit={handleAdd} className="space-y-4">
           {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">{error}</div>}
-          {[
-            { label: 'Full Name', key: 'name', type: 'text', placeholder: 'Parent full name', required: true },
-            { label: 'Email', key: 'email', type: 'email', placeholder: 'parent@gmail.com', required: true },
-            { label: 'Password', key: 'password', type: 'password', placeholder: 'Create password', required: true },
-            { label: "Child's Name (optional)", key: 'childName', type: 'text', placeholder: "Child's full name", required: false },
-          ].map(({ label, key, type, placeholder, required }) => (
-            <div key={key}>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{label}</label>
-              <input type={type} required={required} value={formData[key]}
-                onChange={e => setFormData({ ...formData, [key]: e.target.value })}
-                className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20"
-                placeholder={placeholder} />
-            </div>
-          ))}
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{t(lang, 'fullName')}</label>
+            <input type="text" required value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })}
+              className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20" placeholder={t(lang, 'parentFullName')} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{t(lang, 'email')}</label>
+            <input type="email" required value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })}
+              className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20" placeholder="parent@gmail.com" />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{t(lang, 'password')}</label>
+            <input type="password" required value={formData.password} onChange={e => setFormData({ ...formData, password: e.target.value })}
+              className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20" placeholder={t(lang, 'createPassword')} />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">{t(lang, 'childName')}</label>
+            <input type="text" value={formData.childName} onChange={e => setFormData({ ...formData, childName: e.target.value })}
+              className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20" placeholder={t(lang, 'childFullName')} />
+          </div>
           <div className="flex gap-3 pt-4">
-            <Button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200">Cancel</Button>
-            <Button type="submit" className="flex-1" disabled={formLoading}>{formLoading ? 'Adding...' : 'Add Parent'}</Button>
+            <Button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200">{t(lang, 'cancel')}</Button>
+            <Button type="submit" className="flex-1" disabled={formLoading}>{formLoading ? t(lang, 'adding') : t(lang, 'addParent')}</Button>
           </div>
         </form>
       </Modal>

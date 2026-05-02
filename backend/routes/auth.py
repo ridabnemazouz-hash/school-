@@ -39,16 +39,8 @@ def require_admin_or_super(current_user: UserDB = Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Only Admin or Super Admin can perform this action")
     return current_user
 
-@router.options("/login")
-@router.options("/register")
-@router.options("/add-admin")
-@router.options("/approve/{user_id}")
-@router.options("/reject/{user_id}")
-def options_handler():
-    return Response(status_code=200)
-
 @router.get("/users")
-def get_users_by_role(role: str, db: Session = Depends(get_db)):
+def get_users_by_role(role: str, db: Session = Depends(get_db), current_user: UserDB = Depends(require_admin_or_super)):
     users = db.query(UserDB).filter(UserDB.role == role, UserDB.status == "Active").all()
     result = []
     for user in users:
@@ -68,6 +60,8 @@ def delete_user(user_id: int, db: Session = Depends(get_db), current_user: UserD
     user = db.query(UserDB).filter(UserDB.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
+    if user.role == "Super Admin":
+        raise HTTPException(status_code=403, detail="Super Admin cannot be deleted")
     db.delete(user)
     db.commit()
     return {"message": "User deleted successfully"}
@@ -78,6 +72,9 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     existing_user = db.query(UserDB).filter(UserDB.email == user.email).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
+    
+    if user.role == "Super Admin":
+        raise HTTPException(status_code=403, detail="Super Admin role cannot be requested via registration")
     
     # Hash password
     hashed_password = get_password_hash(user.password)
@@ -98,11 +95,14 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
     return {"message": "Registration request sent successfully", "id": user_db.id}
 
 @router.post("/add-admin")
-def add_admin(user: UserCreate, db: Session = Depends(get_db)):
+def add_admin(user: UserCreate, db: Session = Depends(get_db), current_user: UserDB = Depends(require_super_admin)):
     # Check if user exists
     existing_user = db.query(UserDB).filter(UserDB.email == user.email).first()
     if existing_user:
         raise HTTPException(status_code=400, detail="Email already registered")
+    
+    if user.role == "Super Admin":
+        raise HTTPException(status_code=403, detail="Only one Super Admin is allowed and cannot be created here")
     
     # Hash password
     hashed_password = get_password_hash(user.password)
@@ -137,7 +137,7 @@ def login(req: LoginRequest, db: Session = Depends(get_db)):
     return {"access_token": access_token, "token_type": "bearer", "user": {"id": user.id, "name": user.name, "role": user.role, "email": user.email}}
 
 @router.get("/admins")
-def get_admins(db: Session = Depends(get_db)):
+def get_admins(db: Session = Depends(get_db), current_user: UserDB = Depends(require_admin_or_super)):
     users = db.query(UserDB).filter(UserDB.role.in_(["Admin", "Super Admin"])).all()
     result = []
     for user in users:
@@ -157,6 +157,8 @@ def delete_admin(user_id: int, db: Session = Depends(get_db), current_user: User
     user = db.query(UserDB).filter(UserDB.id == user_id).first()
     if not user:
         raise HTTPException(status_code=404, detail="Admin not found")
+    if user.role == "Super Admin":
+        raise HTTPException(status_code=403, detail="Super Admin cannot be deleted")
     db.delete(user)
     db.commit()
     return {"message": "Admin deleted successfully"}
