@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { School, User, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { GraduationCap, User, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { t } from '../i18n/translations';
 import API from '../config';
@@ -69,7 +69,7 @@ export function Register() {
       <div className="min-h-screen flex items-center justify-center bg-slate-50">
         <div className="w-full max-w-md mx-4 p-10 bg-white rounded-3xl shadow-2xl shadow-slate-200/50 border border-white/50 text-center">
           <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <School className="text-green-600" size={36} />
+            <GraduationCap className="text-green-600" size={36} />
           </div>
           <h2 className="text-2xl font-bold text-slate-800 mb-2">{t(lang, 'requestSent')}</h2>
           <p className="text-slate-500 mb-6">{t(lang, 'requestSentDesc')}</p>
@@ -111,7 +111,7 @@ export function Register() {
           {/* Logo */}
           <div className="flex flex-col items-center mb-8">
             <div className="w-16 h-16 bg-gradient-to-br from-mauve-500 to-mauve-700 rounded-2xl flex items-center justify-center shadow-lg shadow-mauve-200 mb-4">
-              <School className="text-white" size={28} />
+              <GraduationCap className="text-white" size={28} />
             </div>
             <h2 className="text-2xl font-bold text-slate-800">{t(lang, 'createAccount')}</h2>
             <p className="text-sm text-slate-500 mt-1">{t(lang, 'joinEduSaaS')}</p>

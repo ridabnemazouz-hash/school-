@@ -6,7 +6,7 @@ import { cn } from '../../utils';
 import { t } from '../../i18n/translations';
 import { 
   LayoutDashboard, Users, GraduationCap, BookOpen, FileText, 
-  CalendarCheck, Settings, LogOut, School, Bus, UserPlus, FileDown, MessageSquare, Calendar, CreditCard, X
+  CalendarCheck, Settings, LogOut, Bus, UserPlus, FileDown, MessageSquare, Calendar, CreditCard, X
 } from 'lucide-react';
 
 export function Sidebar({ mobileOpen = false, onClose }) {
@@ -68,8 +68,8 @@ export function Sidebar({ mobileOpen = false, onClose }) {
     <>
       <div className="h-16 flex items-center justify-between px-6 border-b border-slate-800">
         <div className="flex items-center">
-          <School className="text-mauve-400 mr-3" size={28} />
-          <span className="text-xl font-bold text-white tracking-wide">EduSaaS</span>
+          <GraduationCap className="text-mauve-400 mr-3" size={28} />
+          <span className="text-xl font-bold text-white tracking-wide">Graduation</span>
         </div>
         {onClose && (
           <button onClick={onClose} className="md:hidden text-slate-400 hover:text-white p-1">

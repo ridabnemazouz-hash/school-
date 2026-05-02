@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { School, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { GraduationCap, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useLanguage } from '../context/LanguageContext';
 import { t } from '../i18n/translations';
@@ -63,7 +63,7 @@ export function Login() {
           {/* Logo */}
           <div className="flex flex-col items-center mb-8">
             <div className="w-16 h-16 bg-gradient-to-br from-mauve-500 to-mauve-700 rounded-2xl flex items-center justify-center shadow-lg shadow-mauve-200 mb-4">
-              <School className="text-white" size={28} />
+              <GraduationCap className="text-white" size={28} />
             </div>
             <h2 className="text-2xl font-bold text-slate-800">{t(lang, 'welcomeBack')}</h2>
             <p className="text-sm text-slate-500 mt-1">{t(lang, 'signInToAccount')}</p>
