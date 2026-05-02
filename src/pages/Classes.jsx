@@ -55,9 +55,22 @@ export function Classes() {
   const fetchClasses = () => {
     setLoading(true);
     fetch('http://localhost:8000/classes/')
-      .then(res => res.json())
-      .then(data => setClasses(data))
-      .catch(err => console.error(err))
+      .then(res => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then(data => {
+        if (Array.isArray(data)) {
+          setClasses(data);
+        } else {
+          console.error('Unexpected API response:', data);
+          setClasses([]);
+        }
+      })
+      .catch(err => {
+        console.error('Failed to fetch classes:', err);
+        setClasses([]);
+      })
       .finally(() => setLoading(false));
   };
 
@@ -108,11 +121,14 @@ export function Classes() {
 
   const getLevelInfo = (levelId) => LEVELS.find(l => l.id === levelId) || LEVELS[0];
 
-  const filtered = classes.filter(c =>
-    c.name.toLowerCase().includes(search.toLowerCase()) ||
-    c.teacher.toLowerCase().includes(search.toLowerCase()) ||
-    c.level.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = classes.filter(c => {
+    const name = c.name || '';
+    const teacher = c.teacher || '';
+    const level = c.level || '';
+    return name.toLowerCase().includes(search.toLowerCase()) ||
+      teacher.toLowerCase().includes(search.toLowerCase()) ||
+      level.toLowerCase().includes(search.toLowerCase());
+  });
 
   const stats = {
     total: classes.length,
@@ -175,12 +191,17 @@ export function Classes() {
             ) : filtered.length === 0 ? (
               <TableRow><TableCell colSpan={6} className="text-center text-slate-400 py-10">{lang === 'fr' ? 'Aucune classe trouvée.' : 'No classes found.'}</TableCell></TableRow>
             ) : filtered.map(cls => {
-              const lvl = getLevelInfo(cls.level);
+              const lvl = getLevelInfo(cls.level || 'primary');
               const pct = Math.round(((cls.students || 0) / (cls.capacity || 1)) * 100);
+              const name = cls.name || '';
+              const grade = cls.grade || '';
+              const teacher = cls.teacher || '';
+              const students = cls.students || 0;
+              const capacity = cls.capacity || 0;
               return (
                 <TableRow key={cls.id}>
                   <TableCell className="font-bold text-slate-800">
-                    <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-lg text-sm">{cls.name} - {cls.grade}</span>
+                    <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-lg text-sm">{name} - {grade}</span>
                   </TableCell>
                   <TableCell>
                     <span className={`px-2.5 py-1 rounded-lg text-xs font-bold ${lvl.color}`}>
@@ -188,13 +209,13 @@ export function Classes() {
                     </span>
                   </TableCell>
                   <TableCell className="text-slate-600 flex items-center gap-2">
-                    <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(cls.teacher)}&background=6366f1&color=fff&size=28`}
-                      alt={cls.teacher} className="w-7 h-7 rounded-full" />
-                    {cls.teacher}
+                    <img src={`https://ui-avatars.com/api/?name=${encodeURIComponent(teacher)}&background=6366f1&color=fff&size=28`}
+                      alt={teacher} className="w-7 h-7 rounded-full" />
+                    {teacher}
                   </TableCell>
                   <TableCell>
                     <span className="flex items-center gap-1 text-slate-600">
-                      <Users size={14} /> {cls.students || 0} / {cls.capacity || 0}
+                      <Users size={14} /> {students} / {capacity}
                     </span>
                   </TableCell>
                   <TableCell>
