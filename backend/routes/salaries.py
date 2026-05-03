@@ -33,6 +33,8 @@ def validate_filename(filename: str) -> str:
 @router.get("/")
 def get_salaries(month: str = None, status: str = None, db: Session = Depends(get_db), current_user=Depends(require_admin_or_super)):
     query = db.query(SalaryDB)
+    if current_user.role != "Super Admin":
+        query = query.filter(SalaryDB.school_id == current_user.school_id)
     if month and month != "All":
         query = query.filter(SalaryDB.month == month)
     if status and status != "All":
@@ -101,7 +103,8 @@ async def create_salary(
         notes=notes,
         file_url=file_url,
         created_by=current_user.id,
-        created_by_name=current_user.name
+        created_by_name=current_user.name,
+        school_id=current_user.school_id or 1
     )
     db.add(db_salary)
     db.commit()
@@ -119,7 +122,10 @@ async def update_salary(
     db: Session = Depends(get_db),
     current_user=Depends(require_admin_or_super)
 ):
-    salary = db.query(SalaryDB).filter(SalaryDB.id == salary_id).first()
+    query = db.query(SalaryDB).filter(SalaryDB.id == salary_id)
+    if current_user.role != "Super Admin":
+        query = query.filter(SalaryDB.school_id == current_user.school_id)
+    salary = query.first()
     if not salary:
         raise HTTPException(status_code=404, detail="Salary not found")
     
@@ -172,7 +178,10 @@ def delete_salary(
     db: Session = Depends(get_db),
     current_user=Depends(require_admin_or_super)
 ):
-    salary = db.query(SalaryDB).filter(SalaryDB.id == salary_id).first()
+    query = db.query(SalaryDB).filter(SalaryDB.id == salary_id)
+    if current_user.role != "Super Admin":
+        query = query.filter(SalaryDB.school_id == current_user.school_id)
+    salary = query.first()
     if not salary:
         raise HTTPException(status_code=404, detail="Salary not found")
     if salary.file_url:
@@ -185,7 +194,10 @@ def delete_salary(
 
 @router.get("/stats")
 def get_stats(db: Session = Depends(get_db), current_user=Depends(require_admin_or_super)):
-    salaries = db.query(SalaryDB).all()
+    query = db.query(SalaryDB)
+    if current_user.role != "Super Admin":
+        query = query.filter(SalaryDB.school_id == current_user.school_id)
+    salaries = query.all()
     total = sum(s.amount for s in salaries)
     paid = sum(s.amount for s in salaries if s.status == "Paid")
     pending = sum(s.amount for s in salaries if s.status == "Pending")
@@ -206,7 +218,10 @@ def generate_receipt(
     db: Session = Depends(get_db),
     current_user=Depends(require_admin_or_super)
 ):
-    salary = db.query(SalaryDB).filter(SalaryDB.id == salary_id).first()
+    query = db.query(SalaryDB).filter(SalaryDB.id == salary_id)
+    if current_user.role != "Super Admin":
+        query = query.filter(SalaryDB.school_id == current_user.school_id)
+    salary = query.first()
     if not salary:
         raise HTTPException(status_code=404, detail="Salary not found")
 

@@ -123,13 +123,19 @@ def require_admin_or_super(current_user: UserDB = Depends(get_current_user)):
 
 @router.get("/users")
 def get_users_by_role(role: str, db: Session = Depends(get_db), current_user: UserDB = Depends(require_admin_or_super)):
-    users = db.query(UserDB).filter(UserDB.role == role, UserDB.status == "Active").all()
+    query = db.query(UserDB).filter(UserDB.role == role, UserDB.status == "Active")
+    if current_user.role != "Super Admin":
+        query = query.filter(UserDB.school_id == current_user.school_id)
+    users = query.all()
     result = []
     for user in users:
         avatar_url = None
         dob = None
         if role == "Student":
-            student = db.query(StudentDB).filter(StudentDB.name == user.name).first()
+            student_query = db.query(StudentDB).filter(StudentDB.user_id == user.id)
+            if current_user.role != "Super Admin":
+                student_query = student_query.filter(StudentDB.school_id == current_user.school_id)
+            student = student_query.first()
             if student:
                 avatar_url = student.avatar_url
                 dob = student.date_of_birth
@@ -145,9 +151,55 @@ def get_users_by_role(role: str, db: Session = Depends(get_db), current_user: Us
         })
     return result
 
+@router.post("/forgot-password")
+def forgot_password(req: LoginRequest, db: Session = Depends(get_db)):
+    email = req.email.lower().strip()
+    user = db.query(UserDB).filter(UserDB.email == email).first()
+    if not user:
+        return {"message": "If an account exists, reset instructions have been sent"}
+    from jose import jwt
+    from datetime import datetime, timedelta
+    token = jwt.encode({"sub": user.email, "exp": datetime.utcnow() + timedelta(hours=1)}, SECRET_KEY, algorithm=ALGORITHM)
+    reset_url = f"{os.environ.get('FRONTEND_URL', 'http://localhost:5173')}/reset-password?token={token}"
+    print(f"Password reset link for {user.email}: {reset_url}")
+    return {"message": "If an account exists, reset instructions have been sent"}
+
+@router.get("/users/{user_id}")
+def get_user_profile(user_id: int, db: Session = Depends(get_db)):
+    user = db.query(UserDB).filter(UserDB.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if user.role == "Student":
+        student = db.query(StudentDB).filter(StudentDB.user_id == user.id).first()
+        return {
+            "id": user.id,
+            "name": user.name,
+            "email": user.email,
+            "role": user.role,
+            "status": user.status,
+            "created_at": user.created_at.strftime("%Y-%m-%d") if user.created_at else None,
+            "avatar_url": student.avatar_url if student else None,
+            "date_of_birth": student.date_of_birth if student else None,
+            "grade": student.grade if student else None,
+            "student_class": student.student_class if student else None,
+            "attendance": student.attendance if student else None,
+            "gpa": student.gpa if student else None,
+        }
+    return {
+        "id": user.id,
+        "name": user.name,
+        "email": user.email,
+        "role": user.role,
+        "status": user.status,
+        "created_at": user.created_at.strftime("%Y-%m-%d") if user.created_at else None,
+    }
+
 @router.delete("/users/{user_id}")
 def delete_user(user_id: int, db: Session = Depends(get_db), current_user: UserDB = Depends(require_admin_or_super)):
-    user = db.query(UserDB).filter(UserDB.id == user_id).first()
+    query = db.query(UserDB).filter(UserDB.id == user_id)
+    if current_user.role != "Super Admin":
+        query = query.filter(UserDB.school_id == current_user.school_id)
+    user = query.first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     if user.role == "Super Admin":
@@ -162,6 +214,8 @@ async def register(
     email: str = Form(...),
     password: str = Form(...),
     role: str = Form(...),
+    grade: str = Form(""),
+    student_class: str = Form(""),
     date_of_birth: str = Form(None),
     avatar: UploadFile = File(None),
     request: Request = None,
@@ -218,7 +272,8 @@ async def register(
         email=email,
         role=role,
         hashed_password=hashed_password,
-        status="Pending"
+        status="Pending",
+        school_id=1
     )
     
     db.add(user_db)
@@ -228,13 +283,15 @@ async def register(
     # If role is Student, also create a student record
     if role == "Student":
         student_db = StudentDB(
+            user_id=user_db.id,
             name=name,
-            grade="",
-            student_class="",
+            grade=grade,
+            student_class=student_class,
             attendance="100%",
             gpa="0.0",
             date_of_birth=date_of_birth,
-            avatar_url=avatar_url
+            avatar_url=avatar_url,
+            school_id=1
         )
         db.add(student_db)
         db.commit()
@@ -272,7 +329,8 @@ def add_admin(user: UserCreate, db: Session = Depends(get_db), current_user: Use
         email=user.email,
         role=user.role,
         hashed_password=hashed_password,
-        status="Active"
+        status="Active",
+        school_id=current_user.school_id or 1
     )
     
     db.add(user_db)
@@ -315,7 +373,7 @@ def login(req: LoginRequest, request: Request, response: Response, db: Session =
     log_security_event(db, "login_success", user.email, client_ip, user_agent)
     
     return {
-        "user": {"id": user.id, "name": user.name, "role": user.role, "email": user.email},
+        "user": {"id": user.id, "name": user.name, "role": user.role, "email": user.email, "school_id": user.school_id},
         "expires_in": ACCESS_TOKEN_EXPIRE_MINUTES * 60
     }
 
@@ -385,13 +443,17 @@ def get_current_user_info(current_user: UserDB = Depends(get_current_user)):
         "name": current_user.name,
         "email": current_user.email,
         "role": current_user.role,
+        "school_id": current_user.school_id,
         "status": current_user.status,
         "created_at": current_user.created_at.isoformat() if current_user.created_at else None
     }
 
 @router.get("/admins")
 def get_admins(db: Session = Depends(get_db), current_user: UserDB = Depends(require_admin_or_super)):
-    users = db.query(UserDB).filter(UserDB.role.in_(["Admin", "Super Admin"])).all()
+    query = db.query(UserDB).filter(UserDB.role.in_(["Admin", "Super Admin"]))
+    if current_user.role != "Super Admin":
+        query = query.filter(UserDB.school_id == current_user.school_id)
+    users = query.all()
     result = []
     for user in users:
         result.append({
@@ -430,7 +492,10 @@ def toggle_admin_status(user_id: int, db: Session = Depends(get_db), current_use
 
 @router.get("/pending-requests")
 def get_pending_requests(db: Session = Depends(get_db), current_user: UserDB = Depends(require_admin_or_super)):
-    users = db.query(UserDB).filter(UserDB.status == "Pending").all()
+    query = db.query(UserDB).filter(UserDB.status == "Pending")
+    if current_user.role != "Super Admin":
+        query = query.filter(UserDB.school_id == current_user.school_id)
+    users = query.all()
     
     result = []
     for user in users:
@@ -447,7 +512,10 @@ def get_pending_requests(db: Session = Depends(get_db), current_user: UserDB = D
 
 @router.put("/approve/{user_id}")
 def approve_user(user_id: int, db: Session = Depends(get_db), current_user: UserDB = Depends(require_admin_or_super)):
-    user = db.query(UserDB).filter(UserDB.id == user_id).first()
+    query = db.query(UserDB).filter(UserDB.id == user_id)
+    if current_user.role != "Super Admin":
+        query = query.filter(UserDB.school_id == current_user.school_id)
+    user = query.first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     if user.status != "Pending":
@@ -461,7 +529,10 @@ def approve_user(user_id: int, db: Session = Depends(get_db), current_user: User
 
 @router.put("/reject/{user_id}")
 def reject_user(user_id: int, db: Session = Depends(get_db), current_user: UserDB = Depends(require_admin_or_super)):
-    user = db.query(UserDB).filter(UserDB.id == user_id).first()
+    query = db.query(UserDB).filter(UserDB.id == user_id)
+    if current_user.role != "Super Admin":
+        query = query.filter(UserDB.school_id == current_user.school_id)
+    user = query.first()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     if user.status != "Pending":

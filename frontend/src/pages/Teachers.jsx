@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '../components/ui/Table';
 import { Button } from '../components/ui/Button';
@@ -35,6 +36,7 @@ function ActionMenu({ user, onDelete }) {
 
 export function Teachers() {
   const { lang } = useLanguage();
+  const navigate = useNavigate();
   const [teachers, setTeachers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -68,19 +70,24 @@ export function Teachers() {
     setFormLoading(true);
     setError('');
     try {
-            const res = await fetch(`${API}/auth/register`, {
+      const data = new FormData();
+      data.append('name', formData.name);
+      data.append('email', formData.email);
+      data.append('password', formData.password);
+      data.append('role', 'Teacher');
+
+      const res = await fetch(`${API}/auth/register`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify({ name: formData.name, email: formData.email, password: formData.password, role: 'Teacher' }),
+        body: data,
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.detail || 'Failed to add teacher');
+        throw new Error(typeof err.detail === 'string' ? err.detail : 'Failed to add teacher');
       }
-      const data = await res.json();
+      const data2 = await res.json();
       setTeachers(prev => [...prev, {
-        id: data.id || Date.now(), name: formData.name, email: formData.email,
+        id: data2.id || Date.now(), name: formData.name, email: formData.email,
         subject: formData.subject, status: 'Active',
         addedDate: new Date().toISOString().split('T')[0],
         avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name)}&background=7c3aed&color=fff`
@@ -168,7 +175,12 @@ export function Teachers() {
               <TableRow key={teacher.id}>
                 <TableCell className="font-medium text-slate-800 flex items-center gap-3">
                   <img src={teacher.avatar} alt={teacher.name} className="w-8 h-8 rounded-full border border-slate-200" />
-                  {teacher.name}
+                  <button
+                    onClick={() => navigate(`/teachers/${teacher.id}`)}
+                    className="text-left hover:text-mauve-500 transition-colors"
+                  >
+                    {teacher.name}
+                  </button>
                 </TableCell>
                 <TableCell className="text-slate-500">{teacher.email}</TableCell>
                 <TableCell>

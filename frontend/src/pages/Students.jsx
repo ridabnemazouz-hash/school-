@@ -59,7 +59,10 @@ export function Students() {
       });
       if (res.ok) {
         const data = await res.json();
-        setStudents(data);
+        setStudents(data.map(s => ({
+          ...s,
+          avatar: s.avatar && s.avatar.startsWith('/') ? `${API}${s.avatar}` : s.avatar,
+        })));
       }
     } catch {
     } finally {
@@ -79,6 +82,8 @@ export function Students() {
       data.append('email', formData.email);
       data.append('password', formData.password);
       data.append('role', 'Student');
+      if (formData.grade) data.append('grade', formData.grade);
+      if (formData.studentClass) data.append('student_class', formData.studentClass);
       if (formData.dateOfBirth) data.append('date_of_birth', formData.dateOfBirth);
       if (photoFile) data.append('avatar', photoFile);
 
@@ -274,6 +279,18 @@ export function Students() {
             <label className="block text-sm font-medium text-slate-700 mb-1">Date de naissance</label>
             <input type="date" value={formData.dateOfBirth} onChange={e => setFormData({ ...formData, dateOfBirth: e.target.value })}
               className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20" />
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Grade</label>
+              <input type="text" value={formData.grade} onChange={e => setFormData({ ...formData, grade: e.target.value })}
+                className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20" placeholder="1Bac" />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Class</label>
+              <input type="text" value={formData.studentClass} onChange={e => setFormData({ ...formData, studentClass: e.target.value })}
+                className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20" placeholder="A" />
+            </div>
           </div>
           <div className="flex gap-3 pt-4">
             <Button type="button" onClick={() => { setIsModalOpen(false); setPhotoFile(null); setPhotoPreview(null); }} className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200">{t(lang, 'cancel')}</Button>

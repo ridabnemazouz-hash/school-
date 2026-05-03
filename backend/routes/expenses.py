@@ -32,6 +32,8 @@ def validate_filename(filename: str) -> str:
 @router.get("/")
 def get_expenses(category: str = None, db: Session = Depends(get_db), current_user=Depends(require_admin_or_super)):
     query = db.query(ExpenseDB)
+    if current_user.role != "Super Admin":
+        query = query.filter(ExpenseDB.school_id == current_user.school_id)
     if category and category != "All":
         query = query.filter(ExpenseDB.category == category)
     items = query.order_by(ExpenseDB.created_at.desc()).all()
@@ -92,7 +94,8 @@ async def create_expense(
         description=description,
         file_url=file_url,
         created_by=current_user.id,
-        created_by_name=current_user.name
+        created_by_name=current_user.name,
+        school_id=current_user.school_id or 1
     )
     db.add(db_expense)
     db.commit()
@@ -105,7 +108,10 @@ def delete_expense(
     db: Session = Depends(get_db),
     current_user=Depends(require_admin_or_super)
 ):
-    expense = db.query(ExpenseDB).filter(ExpenseDB.id == expense_id).first()
+    query = db.query(ExpenseDB).filter(ExpenseDB.id == expense_id)
+    if current_user.role != "Super Admin":
+        query = query.filter(ExpenseDB.school_id == current_user.school_id)
+    expense = query.first()
     if not expense:
         raise HTTPException(status_code=404, detail="Expense not found")
     if expense.file_url:
@@ -118,7 +124,10 @@ def delete_expense(
 
 @router.get("/stats")
 def get_stats(db: Session = Depends(get_db), current_user=Depends(require_admin_or_super)):
-    expenses = db.query(ExpenseDB).all()
+    query = db.query(ExpenseDB)
+    if current_user.role != "Super Admin":
+        query = query.filter(ExpenseDB.school_id == current_user.school_id)
+    expenses = query.all()
     total = sum(e.amount for e in expenses)
     by_category = {}
     for e in expenses:
@@ -138,7 +147,10 @@ async def analyze_expenses(
     db: Session = Depends(get_db),
     current_user=Depends(require_admin_or_super)
 ):
-    expenses = db.query(ExpenseDB).all()
+    query = db.query(ExpenseDB)
+    if current_user.role != "Super Admin":
+        query = query.filter(ExpenseDB.school_id == current_user.school_id)
+    expenses = query.all()
     if not expenses:
         return {"analysis": "No expenses recorded yet."}
 

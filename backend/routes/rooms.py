@@ -19,6 +19,8 @@ active_rooms: dict = {}
 @router.get("/", response_model=list)
 def get_rooms(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     query = db.query(VideoRoomDB)
+    if current_user.role != "Super Admin":
+        query = query.filter(VideoRoomDB.school_id == current_user.school_id)
     if current_user.role == "Teacher":
         query = query.filter(VideoRoomDB.teacher_id == current_user.id)
     rooms = query.order_by(VideoRoomDB.created_at.desc()).all()
@@ -62,7 +64,8 @@ def create_room(
         room_code=room_code,
         max_participants=data.max_participants,
         status="scheduled",
-        scheduled_at=data.scheduled_at
+        scheduled_at=data.scheduled_at,
+        school_id=current_user.school_id or 1
     )
     db.add(db_room)
     db.commit()
@@ -75,7 +78,10 @@ def start_room(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-    room = db.query(VideoRoomDB).filter(VideoRoomDB.id == room_id).first()
+    query = db.query(VideoRoomDB).filter(VideoRoomDB.id == room_id)
+    if current_user.role != "Super Admin":
+        query = query.filter(VideoRoomDB.school_id == current_user.school_id)
+    room = query.first()
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
     if room.teacher_id != current_user.id and current_user.role not in ["Admin", "Super Admin"]:
@@ -92,7 +98,10 @@ def end_room(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-    room = db.query(VideoRoomDB).filter(VideoRoomDB.id == room_id).first()
+    query = db.query(VideoRoomDB).filter(VideoRoomDB.id == room_id)
+    if current_user.role != "Super Admin":
+        query = query.filter(VideoRoomDB.school_id == current_user.school_id)
+    room = query.first()
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
     if room.teacher_id != current_user.id and current_user.role not in ["Admin", "Super Admin"]:
@@ -118,7 +127,10 @@ def delete_room(
     db: Session = Depends(get_db),
     current_user=Depends(require_admin_or_super)
 ):
-    room = db.query(VideoRoomDB).filter(VideoRoomDB.id == room_id).first()
+    query = db.query(VideoRoomDB).filter(VideoRoomDB.id == room_id)
+    if current_user.role != "Super Admin":
+        query = query.filter(VideoRoomDB.school_id == current_user.school_id)
+    room = query.first()
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
     if room.room_code in active_rooms:
@@ -133,7 +145,10 @@ def get_room(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-    room = db.query(VideoRoomDB).filter(VideoRoomDB.id == room_id).first()
+    query = db.query(VideoRoomDB).filter(VideoRoomDB.id == room_id)
+    if current_user.role != "Super Admin":
+        query = query.filter(VideoRoomDB.school_id == current_user.school_id)
+    room = query.first()
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
     participants = active_rooms.get(room.room_code, {}).get("participants", [])
@@ -162,6 +177,8 @@ def join_by_code(
     room = db.query(VideoRoomDB).filter(VideoRoomDB.room_code == room_code).first()
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
+    if current_user.role != "Super Admin" and room.school_id != current_user.school_id:
+        raise HTTPException(status_code=403, detail="Access denied: different school")
     if room.status != "active":
         raise HTTPException(status_code=400, detail="Room is not active")
     if len(active_rooms.get(room_code, {}).get("participants", [])) >= room.max_participants:

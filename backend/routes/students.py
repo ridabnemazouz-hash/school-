@@ -5,8 +5,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy import func
 from database import get_db
 from models import StudentCreate, StudentDB, UserDB
+from auth_utils import get_password_hash
+from routes.auth import require_admin_or_super, get_current_user
 from fastapi.responses import Response
-from routes.auth import require_admin_or_super
 
 router = APIRouter(prefix="/students", tags=["students"])
 
@@ -51,11 +52,31 @@ async def create_student(
         attendance=attendance,
         gpa=gpa,
         date_of_birth=date_of_birth,
-        avatar_url=avatar_url
+        avatar_url=avatar_url,
+        school_id=current_user.school_id or 1
     )
     db.add(db_student)
     db.commit()
     db.refresh(db_student)
+    
+    # Also create a user account for the student
+    user_exists = db.query(UserDB).filter(UserDB.name == name, UserDB.role == "Student").first()
+    if not user_exists:
+        import datetime
+        user_db = UserDB(
+            name=name,
+            email=f"{name.lower().replace(' ', '.')}@school.com",
+            role="Student",
+            hashed_password=get_password_hash(name + "123"),
+            status="Active",
+            created_at=datetime.datetime.utcnow(),
+            school_id=current_user.school_id or 1
+        )
+        db.add(user_db)
+        db.commit()
+        db.refresh(user_db)
+        student_db.user_id = user_db.id
+        db.commit()
     
     return {
         "id": db_student.id,
@@ -69,8 +90,11 @@ async def create_student(
     }
 
 @router.get("/")
-def get_students(db: Session = Depends(get_db)):
-    students = db.query(StudentDB).all()
+def get_students(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    query = db.query(StudentDB)
+    if current_user.role != "Super Admin":
+        query = query.filter(StudentDB.school_id == current_user.school_id)
+    students = query.all()
     result = []
     for s in students:
         result.append({
@@ -86,11 +110,18 @@ def get_students(db: Session = Depends(get_db)):
     return result
 
 @router.get("/stats")
-def get_stats(db: Session = Depends(get_db)):
-    total_students = db.query(UserDB).filter(UserDB.role == "Student", UserDB.status == "Active").count()
-    total_teachers = db.query(UserDB).filter(UserDB.role == "Teacher", UserDB.status == "Active").count()
-    unique_classes = db.query(StudentDB.student_class).distinct().count()
-    students = db.query(StudentDB).all()
+def get_stats(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    user_query = db.query(UserDB).filter(UserDB.status == "Active")
+    if current_user.role != "Super Admin":
+        user_query = user_query.filter(UserDB.school_id == current_user.school_id)
+    total_students = user_query.filter(UserDB.role == "Student").count()
+    total_teachers = user_query.filter(UserDB.role == "Teacher").count()
+    
+    student_query = db.query(StudentDB)
+    if current_user.role != "Super Admin":
+        student_query = student_query.filter(StudentDB.school_id == current_user.school_id)
+    unique_classes = student_query.with_entities(StudentDB.student_class).distinct().count()
+    students = student_query.all()
     if students:
         avg_attendance = sum(int(s.attendance.replace('%', '')) for s in students if s.attendance) / len(students)
     else:
@@ -104,8 +135,11 @@ def get_stats(db: Session = Depends(get_db)):
     }
 
 @router.get("/{student_id}")
-def get_student(student_id: int, db: Session = Depends(get_db)):
-    student = db.query(StudentDB).filter(StudentDB.id == student_id).first()
+def get_student(student_id: int, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
+    query = db.query(StudentDB).filter(StudentDB.id == student_id)
+    if current_user.role != "Super Admin":
+        query = query.filter(StudentDB.school_id == current_user.school_id)
+    student = query.first()
     if not student:
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Student not found")

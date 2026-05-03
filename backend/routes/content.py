@@ -30,8 +30,10 @@ def require_teacher_or_admin(current_user=Depends(get_current_user)):
     return current_user
 
 @router.get("/")
-def get_content(subject: str = None, db: Session = Depends(get_db)):
+def get_content(subject: str = None, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     query = db.query(ContentDB)
+    if current_user.role != "Super Admin":
+        query = query.filter(ContentDB.school_id == current_user.school_id)
     if subject and subject != "All":
         query = query.filter(ContentDB.subject == subject)
     items = query.order_by(ContentDB.created_at.desc()).all()
@@ -62,7 +64,8 @@ def create_content(
         description=sanitize_string(data.description) if data.description else None,
         teacher_id=current_user.id,
         teacher_name=current_user.name,
-        target_class=sanitize_string(data.target_class) if data.target_class else None
+        target_class=sanitize_string(data.target_class) if data.target_class else None,
+        school_id=current_user.school_id or 1
     )
     db.add(db_content)
     db.commit()
@@ -113,7 +116,8 @@ async def upload_content(
         description=description,
         teacher_id=current_user.id,
         teacher_name=current_user.name,
-        target_class=target_class
+        target_class=target_class,
+        school_id=current_user.school_id or 1
     )
     db.add(db_content)
     db.commit()
@@ -126,7 +130,10 @@ def delete_content(
     db: Session = Depends(get_db),
     current_user=Depends(require_teacher_or_admin)
 ):
-    content = db.query(ContentDB).filter(ContentDB.id == content_id).first()
+    query = db.query(ContentDB).filter(ContentDB.id == content_id)
+    if current_user.role != "Super Admin":
+        query = query.filter(ContentDB.school_id == current_user.school_id)
+    content = query.first()
     if not content:
         raise HTTPException(status_code=404, detail="Content not found")
     if content.file_url:

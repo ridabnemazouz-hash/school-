@@ -12,6 +12,11 @@ export function DashboardLayout() {
     return <Navigate to="/login" replace />;
   }
 
+  const isPlatformOwner = user.role === 'Super Admin' && !user.school_id;
+  if (isPlatformOwner) {
+    return <Navigate to="/" replace />;
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 dark:bg-[var(--bg-primary)] flex transition-colors duration-300">
       <Sidebar mobileOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />

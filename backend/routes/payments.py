@@ -12,6 +12,8 @@ router = APIRouter(prefix="/payments", tags=["payments"])
 @router.get("/")
 def get_payments(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     query = db.query(PaymentDB)
+    if current_user.role != "Super Admin":
+        query = query.filter(PaymentDB.school_id == current_user.school_id)
     if current_user.role == "Parent":
         query = query.filter(PaymentDB.parent_id == current_user.id)
     elif current_user.role not in ["Admin", "Super Admin"]:
@@ -55,7 +57,8 @@ def create_payment(
         amount=data.amount,
         status="Paid" if is_paid else "Pending",
         payment_method=data.payment_method,
-        payment_date=datetime.datetime.utcnow() if is_paid else None
+        payment_date=datetime.datetime.utcnow() if is_paid else None,
+        school_id=current_user.school_id or 1
     )
     db.add(db_payment)
     db.commit()
@@ -69,7 +72,10 @@ def update_payment(
     db: Session = Depends(get_db),
     current_user=Depends(require_admin_or_super)
 ):
-    payment = db.query(PaymentDB).filter(PaymentDB.id == payment_id).first()
+    query = db.query(PaymentDB).filter(PaymentDB.id == payment_id)
+    if current_user.role != "Super Admin":
+        query = query.filter(PaymentDB.school_id == current_user.school_id)
+    payment = query.first()
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
 
@@ -98,7 +104,10 @@ def delete_payment(
     db: Session = Depends(get_db),
     current_user=Depends(require_admin_or_super)
 ):
-    payment = db.query(PaymentDB).filter(PaymentDB.id == payment_id).first()
+    query = db.query(PaymentDB).filter(PaymentDB.id == payment_id)
+    if current_user.role != "Super Admin":
+        query = query.filter(PaymentDB.school_id == current_user.school_id)
+    payment = query.first()
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
     db.delete(payment)
@@ -108,6 +117,8 @@ def delete_payment(
 @router.get("/stats")
 def get_stats(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     query = db.query(PaymentDB)
+    if current_user.role != "Super Admin":
+        query = query.filter(PaymentDB.school_id == current_user.school_id)
     if current_user.role == "Parent":
         query = query.filter(PaymentDB.parent_id == current_user.id)
 
@@ -234,7 +245,10 @@ def download_receipt(
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user)
 ):
-    payment = db.query(PaymentDB).filter(PaymentDB.id == payment_id).first()
+    query = db.query(PaymentDB).filter(PaymentDB.id == payment_id)
+    if current_user.role != "Super Admin":
+        query = query.filter(PaymentDB.school_id == current_user.school_id)
+    payment = query.first()
     if not payment:
         raise HTTPException(status_code=404, detail="Payment not found")
     if current_user.role not in ["Admin", "Super Admin"] and payment.parent_id != current_user.id:

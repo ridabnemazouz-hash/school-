@@ -5,9 +5,27 @@ from pydantic import BaseModel, EmailStr
 from typing import Optional, List
 
 # SQLAlchemy Models
+class SchoolDB(Base):
+    __tablename__ = "schools"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True)
+    code = Column(String, unique=True, index=True)
+    address = Column(String, nullable=True)
+    phone = Column(String, nullable=True)
+    email = Column(String, nullable=True)
+    logo_url = Column(String, nullable=True)
+    subscription_plan = Column(String, default="Free")  # Free, Basic, Premium, Enterprise
+    subscription_status = Column(String, default="Active")  # Active, Expired, Cancelled
+    subscription_expiry = Column(String, nullable=True)
+    max_students = Column(Integer, default=50)
+    max_teachers = Column(Integer, default=10)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
 class UserDB(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
+    school_id = Column(Integer, nullable=True, index=True)
     name = Column(String, index=True)
     email = Column(String, unique=True, index=True)
     role = Column(String)
@@ -19,7 +37,8 @@ class UserDB(Base):
 class SecurityLogDB(Base):
     __tablename__ = "security_logs"
     id = Column(Integer, primary_key=True, index=True)
-    event_type = Column(String, index=True)  # login_success, login_failed, token_refresh, rate_limit_blocked
+    school_id = Column(Integer, nullable=True, index=True)
+    event_type = Column(String, index=True)
     email = Column(String, nullable=True, index=True)
     ip_address = Column(String, nullable=True)
     user_agent = Column(String, nullable=True)
@@ -29,6 +48,8 @@ class SecurityLogDB(Base):
 class StudentDB(Base):
     __tablename__ = "students"
     id = Column(Integer, primary_key=True, index=True)
+    school_id = Column(Integer, nullable=True, index=True)
+    user_id = Column(Integer, nullable=True, unique=True)
     name = Column(String, index=True)
     grade = Column(String)
     student_class = Column(String)
@@ -40,16 +61,69 @@ class StudentDB(Base):
 class ClassDB(Base):
     __tablename__ = "classes"
     id = Column(Integer, primary_key=True, index=True)
+    school_id = Column(Integer, nullable=True, index=True)
     name = Column(String, index=True)
-    level = Column(String)  # ابتدائي, إعدادي, ثانوي
-    grade = Column(String)  # 1-6, 7-9, 10-12
+    level = Column(String)
+    grade = Column(String)
     teacher = Column(String)
     capacity = Column(Integer, default=30)
     students_count = Column(Integer, default=0)
 
+class SubjectDB(Base):
+    __tablename__ = "subjects"
+    id = Column(Integer, primary_key=True, index=True)
+    school_id = Column(Integer, nullable=True, index=True)
+    name = Column(String, index=True)
+    code = Column(String)
+    coefficient = Column(Integer, default=1)
+    color = Column(String, default="#6366f1")
+
+class TeacherClassDB(Base):
+    __tablename__ = "teacher_classes"
+    id = Column(Integer, primary_key=True, index=True)
+    school_id = Column(Integer, nullable=True, index=True)
+    teacher_id = Column(Integer, index=True)
+    teacher_name = Column(String)
+    class_id = Column(Integer, index=True)
+    class_name = Column(String)
+    subject_id = Column(Integer, index=True)
+    subject_name = Column(String)
+
+class NoteDB(Base):
+    __tablename__ = "notes"
+    id = Column(Integer, primary_key=True, index=True)
+    school_id = Column(Integer, nullable=True, index=True)
+    student_id = Column(Integer, index=True)
+    student_name = Column(String)
+    student_class = Column(String)
+    subject_id = Column(Integer, index=True)
+    subject_name = Column(String)
+    exam_type = Column(String)
+    note = Column(String)
+    coefficient = Column(Integer, default=1)
+    semester = Column(String, default="S1")
+    academic_year = Column(String, default="2025-2026")
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+class ScheduleEntryDB(Base):
+    __tablename__ = "schedule"
+    id = Column(Integer, primary_key=True, index=True)
+    school_id = Column(Integer, nullable=True, index=True)
+    class_id = Column(Integer, index=True)
+    class_name = Column(String)
+    subject_id = Column(Integer, index=True)
+    subject_name = Column(String)
+    teacher_id = Column(Integer, index=True)
+    teacher_name = Column(String)
+    day = Column(String)
+    start_time = Column(String)
+    end_time = Column(String)
+    room = Column(String, nullable=True)
+
 class MessageDB(Base):
     __tablename__ = "messages"
     id = Column(Integer, primary_key=True, index=True)
+    school_id = Column(Integer, nullable=True, index=True)
     sender_id = Column(Integer)
     receiver_id = Column(Integer)
     content = Column(String)
@@ -60,9 +134,10 @@ class MessageDB(Base):
 class ContentDB(Base):
     __tablename__ = "content"
     id = Column(Integer, primary_key=True, index=True)
+    school_id = Column(Integer, nullable=True, index=True)
     title = Column(String, index=True)
     subject = Column(String)
-    content_type = Column(String)  # PDF, Video, Link, Document
+    content_type = Column(String)
     file_url = Column(String, nullable=True)
     description = Column(String, nullable=True)
     teacher_id = Column(Integer)
@@ -73,22 +148,24 @@ class ContentDB(Base):
 class PaymentDB(Base):
     __tablename__ = "payments"
     id = Column(Integer, primary_key=True, index=True)
+    school_id = Column(Integer, nullable=True, index=True)
     student_name = Column(String, index=True)
     parent_id = Column(Integer)
     parent_name = Column(String)
-    month = Column(String)  # e.g. "May 2026"
-    amount = Column(Integer)  # in DH
-    status = Column(String, default="Pending")  # Paid, Pending, Overdue
-    payment_method = Column(String, nullable=True)  # Cash, Credit Card, Transfer
+    month = Column(String)
+    amount = Column(Integer)
+    status = Column(String, default="Pending")
+    payment_method = Column(String, nullable=True)
     payment_date = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 class ExpenseDB(Base):
     __tablename__ = "expenses"
     id = Column(Integer, primary_key=True, index=True)
+    school_id = Column(Integer, nullable=True, index=True)
     title = Column(String, index=True)
-    category = Column(String)  # Repairs, Supplies, Utilities, Transport, Other
-    amount = Column(Integer)  # in DH
+    category = Column(String)
+    amount = Column(Integer)
     description = Column(String, nullable=True)
     file_url = Column(String, nullable=True)
     created_by = Column(Integer)
@@ -98,14 +175,15 @@ class ExpenseDB(Base):
 class SalaryDB(Base):
     __tablename__ = "salaries"
     id = Column(Integer, primary_key=True, index=True)
+    school_id = Column(Integer, nullable=True, index=True)
     teacher_id = Column(Integer, index=True)
     teacher_name = Column(String, index=True)
-    month = Column(String)  # e.g. "May 2026"
-    amount = Column(Integer)  # in DH
-    status = Column(String, default="Pending")  # Paid, Pending
+    month = Column(String)
+    amount = Column(Integer)
+    status = Column(String, default="Pending")
     payment_date = Column(DateTime, nullable=True)
     notes = Column(String, nullable=True)
-    file_url = Column(String, nullable=True)  # receipt PDF/image
+    file_url = Column(String, nullable=True)
     created_by = Column(Integer)
     created_by_name = Column(String)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
@@ -113,6 +191,7 @@ class SalaryDB(Base):
 class VideoRoomDB(Base):
     __tablename__ = "video_rooms"
     id = Column(Integer, primary_key=True, index=True)
+    school_id = Column(Integer, nullable=True, index=True)
     title = Column(String, index=True)
     description = Column(String, nullable=True)
     teacher_id = Column(Integer, index=True)
@@ -120,12 +199,64 @@ class VideoRoomDB(Base):
     subject = Column(String, nullable=True)
     room_code = Column(String, unique=True, index=True)
     max_participants = Column(Integer, default=30)
-    status = Column(String, default="scheduled")  # scheduled, active, ended
+    status = Column(String, default="scheduled")
     scheduled_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     ended_at = Column(DateTime, nullable=True)
 
+class FeatureFlagDB(Base):
+    __tablename__ = "feature_flags"
+    id = Column(Integer, primary_key=True, index=True)
+    key = Column(String, unique=True, index=True)
+    name = Column(String)
+    enabled = Column(Boolean, default=True)
+    description = Column(String, nullable=True)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow)
+
 # Pydantic Schemas
+class SchoolCreate(BaseModel):
+    name: str
+    code: str
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    subscription_plan: str = "Free"
+    max_students: int = 50
+    max_teachers: int = 10
+    super_admin_name: Optional[str] = None
+    super_admin_email: Optional[str] = None
+    super_admin_password: Optional[str] = None
+
+class SchoolUpdate(BaseModel):
+    name: Optional[str] = None
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    subscription_plan: Optional[str] = None
+    subscription_status: Optional[str] = None
+    subscription_expiry: Optional[str] = None
+    max_students: Optional[int] = None
+    max_teachers: Optional[int] = None
+    is_active: Optional[bool] = None
+
+class SchoolResponse(BaseModel):
+    id: int
+    name: str
+    code: str
+    address: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    logo_url: Optional[str] = None
+    subscription_plan: str
+    subscription_status: str
+    subscription_expiry: Optional[str] = None
+    max_students: int
+    max_teachers: int
+    is_active: bool
+    created_at: Optional[datetime.datetime] = None
+    class Config:
+        from_attributes = True
+
 class UserCreate(BaseModel):
     name: str
     email: EmailStr
@@ -297,5 +428,93 @@ class VideoRoomResponse(BaseModel):
     scheduled_at: Optional[datetime.datetime] = None
     created_at: datetime.datetime
     ended_at: Optional[datetime.datetime] = None
+    class Config:
+        from_attributes = True
+
+class SubjectCreate(BaseModel):
+    name: str
+    code: str
+    coefficient: int = 1
+    color: str = "#6366f1"
+
+class SubjectResponse(BaseModel):
+    id: int
+    name: str
+    code: str
+    coefficient: int
+    color: str
+    class Config:
+        from_attributes = True
+
+class TeacherClassCreate(BaseModel):
+    teacher_id: int
+    teacher_name: str
+    class_id: int
+    class_name: str
+    subject_id: int
+    subject_name: str
+
+class TeacherClassResponse(BaseModel):
+    id: int
+    teacher_id: int
+    teacher_name: str
+    class_id: int
+    class_name: str
+    subject_id: int
+    subject_name: str
+    class Config:
+        from_attributes = True
+
+class NoteCreate(BaseModel):
+    student_id: int
+    student_name: str
+    student_class: str
+    subject_id: int
+    subject_name: str
+    exam_type: str
+    note: str
+    coefficient: int = 1
+    semester: str = "S1"
+    academic_year: str = "2025-2026"
+
+class NoteResponse(BaseModel):
+    id: int
+    student_id: int
+    student_name: str
+    student_class: str
+    subject_id: int
+    subject_name: str
+    exam_type: str
+    note: str
+    coefficient: int
+    semester: str
+    academic_year: str
+    class Config:
+        from_attributes = True
+
+class ScheduleEntryCreate(BaseModel):
+    class_id: int
+    class_name: str
+    subject_id: int
+    subject_name: str
+    teacher_id: int
+    teacher_name: str
+    day: str
+    start_time: str
+    end_time: str
+    room: Optional[str] = None
+
+class ScheduleEntryResponse(BaseModel):
+    id: int
+    class_id: int
+    class_name: str
+    subject_id: int
+    subject_name: str
+    teacher_id: int
+    teacher_name: str
+    day: str
+    start_time: str
+    end_time: str
+    room: Optional[str] = None
     class Config:
         from_attributes = True

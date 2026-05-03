@@ -83,3 +83,15 @@ def validate_password_strength(password: str) -> str | None:
     if not any(c in "!@#$%^&*()_+-=[]{}|;:,.<>?" for c in password):
         return "Password must contain at least one special character"
     return None
+
+def require_admin_or_super(current_user):
+    if current_user.role not in ["Admin", "Super Admin"]:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Only Admin or Super Admin can perform this action")
+    return current_user
+
+def require_super_admin(current_user):
+    if current_user.role != "Super Admin":
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Only Super Admin can perform this action")
+    return current_user
