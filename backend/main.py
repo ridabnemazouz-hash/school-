@@ -30,6 +30,7 @@ from routes.grades import router as grades_router
 from routes.schedule import router as schedule_router
 from routes.schools import router as schools_router
 from routes.dev import router as dev_router
+from routes.enterprise import router as enterprise_router
 
 logging.basicConfig(
     level=logging.INFO,
@@ -118,6 +119,7 @@ app.include_router(grades_router)
 app.include_router(schedule_router)
 app.include_router(schools_router)
 app.include_router(dev_router)
+app.include_router(enterprise_router)
 
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)

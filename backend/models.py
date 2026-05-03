@@ -518,3 +518,131 @@ class ScheduleEntryResponse(BaseModel):
     room: Optional[str] = None
     class Config:
         from_attributes = True
+
+# === ENTERPRISE MODELS ===
+
+class BlockedIP(Base):
+    __tablename__ = "blocked_ips"
+    id = Column(Integer, primary_key=True, index=True)
+    ip_address = Column(String, unique=True, index=True)
+    reason = Column(String, nullable=True)
+    blocked_by = Column(String, nullable=True)
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    expires_at = Column(DateTime, nullable=True)
+
+class SecurityIncident(Base):
+    __tablename__ = "security_incidents"
+    id = Column(Integer, primary_key=True, index=True)
+    incident_type = Column(String, index=True)  # hack_attempt, brute_force, sql_injection, xss, suspicious_login
+    severity = Column(String, default="medium")  # low, medium, high, critical
+    ip_address = Column(String, nullable=True)
+    user_agent = Column(String, nullable=True)
+    target = Column(String, nullable=True)
+    payload = Column(Text, nullable=True)
+    details = Column(Text, nullable=True)
+    resolved = Column(Boolean, default=False)
+    resolved_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+class BackupRecord(Base):
+    __tablename__ = "backup_records"
+    id = Column(Integer, primary_key=True, index=True)
+    filename = Column(String)
+    size_mb = Column(Integer, default=0)
+    backup_type = Column(String, default="manual")  # manual, auto
+    status = Column(String, default="completed")  # pending, completed, failed, restoring
+    triggered_by = Column(String, nullable=True)
+    notes = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
+
+class IntegrationConfig(Base):
+    __tablename__ = "integration_configs"
+    id = Column(Integer, primary_key=True, index=True)
+    service = Column(String, unique=True, index=True)  # stripe, smtp, sms, etc.
+    config = Column(Text)  # JSON string
+    is_active = Column(Boolean, default=False)
+    last_tested = Column(DateTime, nullable=True)
+    test_status = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+class AlertRule(Base):
+    __tablename__ = "alert_rules"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String)
+    rule_type = Column(String)  # server_down, db_slow, error_spike, high_churn, payment_failed
+    threshold = Column(Integer, nullable=True)
+    condition = Column(String, nullable=True)
+    enabled = Column(Boolean, default=True)
+    notification_channels = Column(String, default="dashboard")  # dashboard, email, sms
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+class AlertNotification(Base):
+    __tablename__ = "alert_notifications"
+    id = Column(Integer, primary_key=True, index=True)
+    rule_id = Column(Integer, nullable=True)
+    severity = Column(String, default="medium")
+    title = Column(String)
+    message = Column(Text)
+    channel = Column(String, default="dashboard")
+    is_read = Column(Boolean, default=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+class ABTest(Base):
+    __tablename__ = "ab_tests"
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String, index=True)
+    description = Column(String, nullable=True)
+    feature_key = Column(String)
+    variant_a_name = Column(String, default="A")
+    variant_b_name = Column(String, default="B")
+    traffic_split = Column(Integer, default=50)  # percentage for B
+    target_schools = Column(Text, nullable=True)  # JSON list of school IDs
+    status = Column(String, default="draft")  # draft, running, completed
+    results = Column(Text, nullable=True)  # JSON
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    started_at = Column(DateTime, nullable=True)
+    ended_at = Column(DateTime, nullable=True)
+
+class MigrationRecord(Base):
+    __tablename__ = "migration_records"
+    id = Column(Integer, primary_key=True, index=True)
+    migration_name = Column(String, unique=True, index=True)
+    status = Column(String, default="pending")  # pending, applied, rolled_back, failed
+    applied_at = Column(DateTime, nullable=True)
+    rolled_back_at = Column(DateTime, nullable=True)
+    details = Column(Text, nullable=True)
+
+class ActivityEvent(Base):
+    __tablename__ = "activity_events"
+    id = Column(Integer, primary_key=True, index=True)
+    event_type = Column(String, index=True)  # school_created, user_login, payment_received, etc.
+    entity_type = Column(String, nullable=True)
+    entity_id = Column(Integer, nullable=True)
+    school_id = Column(Integer, nullable=True)
+    user_email = Column(String, nullable=True)
+    details = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
+
+class BillingMetric(Base):
+    __tablename__ = "billing_metrics"
+    id = Column(Integer, primary_key=True, index=True)
+    school_id = Column(Integer, nullable=True, index=True)
+    metric_type = Column(String, index=True)  # revenue, churn, ltv, mrr
+    value = Column(Integer)  # in cents
+    period = Column(String)  # e.g. "2025-01"
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+class ReportRecord(Base):
+    __tablename__ = "report_records"
+    id = Column(Integer, primary_key=True, index=True)
+    school_id = Column(Integer, nullable=True)
+    report_type = Column(String)  # financial, attendance, academic, security
+    format = Column(String, default="pdf")
+    status = Column(String, default="pending")
+    file_url = Column(String, nullable=True)
+    generated_by = Column(String, nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    completed_at = Column(DateTime, nullable=True)
