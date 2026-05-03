@@ -55,6 +55,7 @@ export function Schools() {
   }, [user, navigate]);
 
   const [schools, setSchools] = useState([]);
+  const [schoolAdmins, setSchoolAdmins] = useState({});
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSchool, setEditingSchool] = useState(null);
@@ -63,6 +64,7 @@ export function Schools() {
   const [success, setSuccess] = useState('');
   const [search, setSearch] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [createdAdmin, setCreatedAdmin] = useState(null);
 
   useEffect(() => {
     fetchSchools();
@@ -74,6 +76,20 @@ export function Schools() {
       if (res.ok) {
         const data = await res.json();
         setSchools(data);
+
+        const admins = {};
+        for (const school of data) {
+          try {
+            const adminRes = await fetch(`${API}/users?role=Super%20Admin&school_id=${school.id}`, { credentials: 'include' });
+            if (adminRes.ok) {
+              const adminData = await adminRes.json();
+              if (adminData.length > 0) {
+                admins[school.id] = { name: adminData[0].name, email: adminData[0].email };
+              }
+            }
+          } catch {}
+        }
+        setSchoolAdmins(admins);
       }
     } catch (err) {
       console.error(err);
@@ -154,6 +170,18 @@ export function Schools() {
         return;
       }
 
+      const data = await res.json();
+
+      if (data.admin_created) {
+        setCreatedAdmin({
+          name: data.admin_name,
+          email: data.admin_email,
+          password: data.admin_password,
+          school: data.name,
+          code: data.code,
+        });
+      }
+
       showSuccess(editingSchool ? t(lang, 'schoolUpdated') : t(lang, 'schoolAdded'));
       setIsModalOpen(false);
       setEditingSchool(null);
@@ -228,6 +256,7 @@ export function Schools() {
             <TableRow>
               <TableHead>{t(lang, 'schoolName')}</TableHead>
               <TableHead>{t(lang, 'code')}</TableHead>
+              <TableHead>Admin</TableHead>
               <TableHead>{t(lang, 'subscription')}</TableHead>
               <TableHead>{t(lang, 'limits')}</TableHead>
               <TableHead>{t(lang, 'status')}</TableHead>
@@ -236,9 +265,9 @@ export function Schools() {
           </TableHeader>
           <TableBody>
             {loading ? (
-              <TableRow><TableCell colSpan={6} className="text-center py-10 text-slate-500"><Loader className="animate-spin mx-auto mb-2" size={24} />{t(lang, 'loadingRequests')}</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center py-10 text-slate-500"><Loader className="animate-spin mx-auto mb-2" size={24} />{t(lang, 'loadingRequests')}</TableCell></TableRow>
             ) : filteredSchools.length === 0 ? (
-              <TableRow><TableCell colSpan={6} className="text-center text-slate-400 py-10">{t(lang, 'noSchools')}</TableCell></TableRow>
+              <TableRow><TableCell colSpan={7} className="text-center text-slate-400 py-10">{t(lang, 'noSchools')}</TableCell></TableRow>
             ) : (
               filteredSchools.map((school) => (
                 <TableRow key={school.id}>
@@ -247,6 +276,16 @@ export function Schools() {
                     {school.name}
                   </TableCell>
                   <TableCell className="text-slate-500 font-mono text-sm">{school.code}</TableCell>
+                  <TableCell>
+                    {schoolAdmins[school.id] ? (
+                      <div>
+                        <p className="text-sm text-slate-700">{schoolAdmins[school.id].name}</p>
+                        <p className="text-[10px] text-slate-400 font-mono">{schoolAdmins[school.id].email}</p>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-slate-400 italic">No admin</span>
+                    )}
+                  </TableCell>
                   <TableCell>
                     <span className={`px-2.5 py-1 rounded-md text-xs font-medium ${planColors[school.subscription_plan] || 'bg-slate-100 text-slate-700'}`}>
                       {school.subscription_plan}
@@ -348,6 +387,54 @@ export function Schools() {
             <Button type="submit" className="flex-1">{editingSchool ? t(lang, 'save') : t(lang, 'addSchool')}</Button>
           </div>
         </form>
+      </Modal>
+
+      <Modal isOpen={!!createdAdmin} onClose={() => setCreatedAdmin(null)} title="✅ School Created — Admin Credentials">
+        {createdAdmin && (
+          <div className="space-y-4">
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <p className="text-sm font-medium text-green-800 mb-1">School: {createdAdmin.school} ({createdAdmin.code})</p>
+              <p className="text-xs text-green-600">Super Admin account has been created successfully</p>
+            </div>
+
+            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
+              <p className="text-xs font-semibold text-amber-800 mb-3">🔑 Login Credentials (Save these!)</p>
+              <div className="space-y-2">
+                <div className="flex items-center justify-between bg-white rounded-lg p-3 border border-amber-100">
+                  <div>
+                    <p className="text-[10px] text-slate-400 uppercase">Name</p>
+                    <p className="text-sm font-medium text-slate-800">{createdAdmin.name}</p>
+                  </div>
+                  <button onClick={() => { navigator.clipboard.writeText(createdAdmin.name); }} className="text-xs text-amber-600 hover:text-amber-700 font-medium">Copy</button>
+                </div>
+                <div className="flex items-center justify-between bg-white rounded-lg p-3 border border-amber-100">
+                  <div>
+                    <p className="text-[10px] text-slate-400 uppercase">Email</p>
+                    <p className="text-sm font-mono text-slate-800">{createdAdmin.email}</p>
+                  </div>
+                  <button onClick={() => { navigator.clipboard.writeText(createdAdmin.email); }} className="text-xs text-amber-600 hover:text-amber-700 font-medium">Copy</button>
+                </div>
+                <div className="flex items-center justify-between bg-white rounded-lg p-3 border border-amber-100">
+                  <div>
+                    <p className="text-[10px] text-slate-400 uppercase">Password</p>
+                    <p className="text-sm font-mono text-slate-800">{createdAdmin.password}</p>
+                  </div>
+                  <button onClick={() => { navigator.clipboard.writeText(createdAdmin.password); }} className="text-xs text-amber-600 hover:text-amber-700 font-medium">Copy</button>
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
+              <p className="text-xs text-blue-700">
+                <strong>Login URL:</strong> <code className="bg-blue-100 px-1 rounded">{window.location.origin}/auth/login</code>
+              </p>
+            </div>
+
+            <div className="flex gap-3 pt-2">
+              <Button onClick={() => setCreatedAdmin(null)} className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200">Close</Button>
+            </div>
+          </div>
+        )}
       </Modal>
     </div>
   );

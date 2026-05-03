@@ -41,6 +41,15 @@ def create_school(school: SchoolCreate, db: Session = Depends(get_db), current_u
         db.add(admin_user)
         db.commit()
 
+        return {
+            **{k: v for k, v in db_school.__dict__.items() if k != '_sa_instance_state'},
+            "admin_created": True,
+            "admin_name": admin_user.name,
+            "admin_email": admin_user.email,
+            "admin_password": school.super_admin_password,
+            "admin_login_url": "/auth/login",
+        }
+
     return db_school
 
 @router.get("/{school_id}", response_model=SchoolResponse)
