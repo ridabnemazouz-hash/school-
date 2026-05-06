@@ -19,7 +19,7 @@ active_rooms: dict = {}
 @router.get("/", response_model=list)
 def get_rooms(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     query = db.query(VideoRoomDB)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(VideoRoomDB.school_id == current_user.school_id)
     if current_user.role == "Teacher":
         query = query.filter(VideoRoomDB.teacher_id == current_user.id)
@@ -79,7 +79,7 @@ def start_room(
     current_user=Depends(get_current_user)
 ):
     query = db.query(VideoRoomDB).filter(VideoRoomDB.id == room_id)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(VideoRoomDB.school_id == current_user.school_id)
     room = query.first()
     if not room:
@@ -99,7 +99,7 @@ def end_room(
     current_user=Depends(get_current_user)
 ):
     query = db.query(VideoRoomDB).filter(VideoRoomDB.id == room_id)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(VideoRoomDB.school_id == current_user.school_id)
     room = query.first()
     if not room:
@@ -128,7 +128,7 @@ def delete_room(
     current_user=Depends(require_admin_or_super)
 ):
     query = db.query(VideoRoomDB).filter(VideoRoomDB.id == room_id)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(VideoRoomDB.school_id == current_user.school_id)
     room = query.first()
     if not room:
@@ -146,7 +146,7 @@ def get_room(
     current_user=Depends(get_current_user)
 ):
     query = db.query(VideoRoomDB).filter(VideoRoomDB.id == room_id)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(VideoRoomDB.school_id == current_user.school_id)
     room = query.first()
     if not room:
@@ -177,7 +177,7 @@ def join_by_code(
     room = db.query(VideoRoomDB).filter(VideoRoomDB.room_code == room_code).first()
     if not room:
         raise HTTPException(status_code=404, detail="Room not found")
-    if current_user.role != "Super Admin" and room.school_id != current_user.school_id:
+    if current_user.school_id is not None and room.school_id != current_user.school_id:
         raise HTTPException(status_code=403, detail="Access denied: different school")
     if room.status != "active":
         raise HTTPException(status_code=400, detail="Room is not active")

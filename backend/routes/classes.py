@@ -9,7 +9,7 @@ router = APIRouter(prefix="/classes", tags=["classes"])
 @router.get("/")
 def get_classes(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     query = db.query(ClassDB)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(ClassDB.school_id == current_user.school_id)
     classes = query.all()
     return [{
@@ -49,7 +49,7 @@ def create_class(cls: ClassCreate, db: Session = Depends(get_db), current_user=D
 @router.delete("/{class_id}")
 def delete_class(class_id: int, db: Session = Depends(get_db), current_user=Depends(require_admin_or_super)):
     query = db.query(ClassDB).filter(ClassDB.id == class_id)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(ClassDB.school_id == current_user.school_id)
     cls = query.first()
     if not cls:
@@ -61,7 +61,7 @@ def delete_class(class_id: int, db: Session = Depends(get_db), current_user=Depe
 @router.get("/stats")
 def get_stats(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     query = db.query(ClassDB)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(ClassDB.school_id == current_user.school_id)
     total = query.count()
     total_students = query.with_entities(ClassDB.students_count).all()

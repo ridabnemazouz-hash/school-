@@ -32,7 +32,7 @@ def validate_filename(filename: str) -> str:
 @router.get("/")
 def get_expenses(category: str = None, db: Session = Depends(get_db), current_user=Depends(require_admin_or_super)):
     query = db.query(ExpenseDB)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(ExpenseDB.school_id == current_user.school_id)
     if category and category != "All":
         query = query.filter(ExpenseDB.category == category)
@@ -109,7 +109,7 @@ def delete_expense(
     current_user=Depends(require_admin_or_super)
 ):
     query = db.query(ExpenseDB).filter(ExpenseDB.id == expense_id)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(ExpenseDB.school_id == current_user.school_id)
     expense = query.first()
     if not expense:
@@ -125,7 +125,7 @@ def delete_expense(
 @router.get("/stats")
 def get_stats(db: Session = Depends(get_db), current_user=Depends(require_admin_or_super)):
     query = db.query(ExpenseDB)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(ExpenseDB.school_id == current_user.school_id)
     expenses = query.all()
     total = sum(e.amount for e in expenses)
@@ -148,7 +148,7 @@ async def analyze_expenses(
     current_user=Depends(require_admin_or_super)
 ):
     query = db.query(ExpenseDB)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(ExpenseDB.school_id == current_user.school_id)
     expenses = query.all()
     if not expenses:

@@ -9,7 +9,7 @@ router = APIRouter(prefix="/subjects", tags=["subjects"])
 @router.get("/", response_model=list[SubjectResponse])
 def get_subjects(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     query = db.query(SubjectDB)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(SubjectDB.school_id == current_user.school_id)
     return query.all()
 
@@ -18,7 +18,7 @@ def create_subject(subject: SubjectCreate, db: Session = Depends(get_db), curren
     if current_user.role not in ["Admin", "Super Admin"]:
         raise HTTPException(status_code=403, detail="Only admins can create subjects")
     existing_query = db.query(SubjectDB).filter(SubjectDB.name == subject.name)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         existing_query = existing_query.filter(SubjectDB.school_id == current_user.school_id)
     existing = existing_query.first()
     if existing:
@@ -34,7 +34,7 @@ def update_subject(subject_id: int, subject: SubjectCreate, db: Session = Depend
     if current_user.role not in ["Admin", "Super Admin"]:
         raise HTTPException(status_code=403, detail="Only admins can update subjects")
     query = db.query(SubjectDB).filter(SubjectDB.id == subject_id)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(SubjectDB.school_id == current_user.school_id)
     db_subject = query.first()
     if not db_subject:
@@ -50,7 +50,7 @@ def delete_subject(subject_id: int, db: Session = Depends(get_db), current_user=
     if current_user.role not in ["Admin", "Super Admin"]:
         raise HTTPException(status_code=403, detail="Only admins can delete subjects")
     query = db.query(SubjectDB).filter(SubjectDB.id == subject_id)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(SubjectDB.school_id == current_user.school_id)
     db_subject = query.first()
     if not db_subject:
@@ -62,7 +62,7 @@ def delete_subject(subject_id: int, db: Session = Depends(get_db), current_user=
 @router.get("/teacher-classes")
 def get_teacher_classes(class_id: int = None, teacher_id: int = None, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     query = db.query(TeacherClassDB)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(TeacherClassDB.school_id == current_user.school_id)
     if class_id:
         query = query.filter(TeacherClassDB.class_id == class_id)
@@ -85,7 +85,7 @@ def delete_teacher_class(assignment_id: int, db: Session = Depends(get_db), curr
     if current_user.role not in ["Admin", "Super Admin"]:
         raise HTTPException(status_code=403, detail="Only admins can remove assignments")
     query = db.query(TeacherClassDB).filter(TeacherClassDB.id == assignment_id)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(TeacherClassDB.school_id == current_user.school_id)
     db_assignment = query.first()
     if not db_assignment:
@@ -97,13 +97,13 @@ def delete_teacher_class(assignment_id: int, db: Session = Depends(get_db), curr
 @router.get("/teachers")
 def get_teachers_with_classes(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     user_query = db.query(UserDB).filter(UserDB.role == "Teacher", UserDB.status == "Active")
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         user_query = user_query.filter(UserDB.school_id == current_user.school_id)
     teachers = user_query.all()
     result = []
     for teacher in teachers:
         tc_query = db.query(TeacherClassDB).filter(TeacherClassDB.teacher_id == teacher.id)
-        if current_user.role != "Super Admin":
+        if current_user.school_id is not None:
             tc_query = tc_query.filter(TeacherClassDB.school_id == current_user.school_id)
         assignments = tc_query.all()
         result.append({

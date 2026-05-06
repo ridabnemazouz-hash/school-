@@ -5,670 +5,675 @@ import {
   School, Users, CreditCard, Server, Database, Globe, Zap, Loader,
   TrendingUp, Activity, DollarSign, AlertCircle, Shield, HardDrive,
   Plug, Bell, Rss, FlaskConical, FileText, ArrowUpRight, EyeOff,
-  RotateCcw, Ban, Lock, RefreshCw, AlertTriangle, TrendingDown
+  RotateCcw, Ban, Lock, RefreshCw, AlertTriangle, TrendingDown,
+  Brain, Terminal, Command, Search, Filter, Play, ExternalLink,
+  ChevronRight, MoreVertical, Trash2, Edit3, UserCheck, AppWindow
 } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
-import API from '../../config';
+import { 
+  AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  BarChart, Bar, PieChart, Pie, Cell, LineChart, Line
+} from 'recharts';
+import { motion, AnimatePresence } from 'framer-motion';
+import API, { apiFetch } from '../../config';
 
-const CHART_COLORS = ['#8b5cf6', '#3b82f6', '#f59e0b', '#10b981'];
+const CHART_COLORS = ['#8b5cf6', '#3b82f6', '#f59e0b', '#10b981', '#ec4899', '#06b6d4'];
 
 export function OwnerDashboard() {
-  const { user } = useAuth();
+  const { user, login } = useAuth();
   const navigate = useNavigate();
-  const [schools, setSchools] = useState([]);
-  const [systemStats, setSystemStats] = useState({ totalStudents: 0, totalTeachers: 0, totalClasses: 0, averageAttendance: 0 });
-  const [healthData, setHealthData] = useState({ status: 'ok', database: 'Disconnected', uptime: 'running' });
   const [loading, setLoading] = useState(true);
-  const [pendingRequests, setPendingRequests] = useState([]);
-  const [securityData, setSecurityData] = useState(null);
-  const [billingData, setBillingData] = useState(null);
-  const [backupsData, setBackupsData] = useState([]);
-  const [alertsData, setAlertsData] = useState({ rules: [], notifications: [] });
-  const [feedData, setFeedData] = useState([]);
-  const [integrationsData, setIntegrationsData] = useState([]);
+  const [activeTab, setActiveTab] = useState('overview');
+  
+  // Data States
+  const [schools, setSchools] = useState([]);
+  const [analytics, setAnalytics] = useState(null);
+  const [activityFeed, setActivityFeed] = useState([]);
   const [systemInfo, setSystemInfo] = useState(null);
+  const [securityStats, setSecurityStats] = useState(null);
+  const [aiAnalysis, setAiAnalysis] = useState(null);
+  const [isAiLoading, setIsAiLoading] = useState(false);
   const [toast, setToast] = useState(null);
 
-  const showToast = (msg) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
+  const showToast = (msg, type = 'success') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 4000);
+  };
 
   useEffect(() => {
-    fetchData();
+    fetchAllData();
+    const interval = setInterval(fetchLiveFeed, 30000); // Update feed every 30s
+    return () => clearInterval(interval);
   }, []);
 
-  const fetchData = async () => {
+  const fetchAllData = async () => {
+    setLoading(true);
     try {
-      const [schoolsRes, statsRes, healthRes, pendingRes,
-        securityRes, billingRes, backupsRes, alertsRulesRes, alertsNotifsRes, feedRes, integrationsRes, systemRes
-      ] = await Promise.all([
-        fetch(`${API}/schools/`, { credentials: 'include' }),
-        fetch(`${API}/students/stats`, { credentials: 'include' }),
-        fetch(`${API}/health`, { credentials: 'include' }),
-        fetch(`${API}/auth/pending-requests`, { credentials: 'include' }),
-        fetch(`${API}/enterprise/security/dashboard`, { credentials: 'include' }),
-        fetch(`${API}/enterprise/billing/analytics`, { credentials: 'include' }),
-        fetch(`${API}/enterprise/backups`, { credentials: 'include' }),
-        fetch(`${API}/enterprise/alerts/rules`, { credentials: 'include' }),
-        fetch(`${API}/enterprise/alerts/notifications?unread_only=true`, { credentials: 'include' }),
-        fetch(`${API}/enterprise/activity-feed?limit=8`, { credentials: 'include' }),
-        fetch(`${API}/enterprise/integrations`, { credentials: 'include' }),
-        fetch(`${API}/enterprise/reload/status`, { credentials: 'include' }),
+      const [schoolsRes, analyticsRes, feedRes, systemRes, securityRes] = await Promise.all([
+        apiFetch('/schools/'),
+        apiFetch('/dev/saas-analytics'),
+        apiFetch('/dev/activity-feed?limit=15'),
+        apiFetch('/dev/system'),
+        apiFetch('/dev/logs-summary'),
       ]);
 
       if (schoolsRes.ok) setSchools(await schoolsRes.json());
-      if (statsRes.ok) setSystemStats(await statsRes.json());
-      if (healthRes.ok) setHealthData(await healthRes.json());
-      if (pendingRes.ok) setPendingRequests(await pendingRes.json());
-      if (securityRes.ok) setSecurityData(await securityRes.json());
-      if (billingRes.ok) setBillingData(await billingRes.json());
-      if (backupsRes.ok) setBackupsData(await backupsRes.json());
-      if (alertsRulesRes.ok) {
-        const rules = await alertsRulesRes.json();
-        setAlertsData(prev => ({ ...prev, rules }));
-      }
-      if (alertsNotifsRes.ok) {
-        const notifications = await alertsNotifsRes.json();
-        setAlertsData(prev => ({ ...prev, notifications }));
-      }
-      if (feedRes.ok) setFeedData(await feedRes.json());
-      if (integrationsRes.ok) setIntegrationsData(await integrationsRes.json());
+      if (analyticsRes.ok) setAnalytics(await analyticsRes.json());
+      if (feedRes.ok) setActivityFeed(await feedRes.json());
       if (systemRes.ok) setSystemInfo(await systemRes.json());
+      if (securityRes.ok) setSecurityStats(await securityRes.json());
     } catch (err) {
-      console.error(err);
+      console.error("Failed to fetch dashboard data", err);
+      showToast("Connection error. Some data might be stale.", "error");
     } finally {
       setLoading(false);
     }
   };
 
-  const handleApprove = async (id) => {
+  const fetchLiveFeed = async () => {
     try {
-      const res = await fetch(`${API}/auth/approve/${id}`, { method: 'PUT', credentials: 'include' });
-      if (res.ok) fetchData();
-    } catch (err) { console.error(err); }
+      const res = await apiFetch('/dev/activity-feed?limit=15');
+      if (res.ok) setActivityFeed(await res.json());
+    } catch (err) { console.error("Feed update failed", err); }
   };
 
-  const handleReject = async (id) => {
+  const handleDeleteSchool = async (schoolId, schoolName) => {
+    if (!window.confirm(`Are you absolutely sure you want to delete "${schoolName}"? This will permanently erase all students, teachers, and school data. This action cannot be undone.`)) {
+      return;
+    }
+
     try {
-      const res = await fetch(`${API}/auth/reject/${id}`, { method: 'PUT', credentials: 'include' });
-      if (res.ok) fetchData();
-    } catch (err) { console.error(err); }
+      const res = await apiFetch(`/schools/${schoolId}`, { method: 'DELETE' });
+      if (res.ok) {
+        showToast(`${schoolName} and all related accounts deleted`, "success");
+        setSchools(prev => prev.filter(s => s.id !== schoolId));
+      } else {
+        const err = await res.json();
+        showToast(err.detail || "Deletion failed", "error");
+      }
+    } catch (err) {
+      showToast("Network error during deletion", "error");
+    }
+  };
+
+  const handleImpersonate = async (schoolId) => {
+    try {
+      // First, get the super admin for this school
+      const usersRes = await apiFetch('/auth/users?role=Super Admin');
+      if (!usersRes.ok) throw new Error("Failed to fetch users");
+      const users = await usersRes.json();
+      const target = users.find(u => u.school_id === schoolId);
+      
+      if (!target) {
+        showToast("No Super Admin found for this school", "error");
+        return;
+      }
+
+      const res = await apiFetch(`/auth/impersonate/${target.id}`, { 
+        method: 'POST'
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        // Update AuthContext and redirect
+        showToast(`Logged in as ${target.name}`, "success");
+        setTimeout(() => window.location.href = '/school', 1000);
+      } else {
+        const err = await res.json();
+        showToast(err.detail || "Impersonation failed", "error");
+      }
+    } catch (err) {
+      showToast("Security error during impersonation", "error");
+    }
+  };
+
+  const runAiDiagnostic = async () => {
+    setIsAiLoading(true);
+    try {
+      const res = await apiFetch('/dev/ai-analyze', { method: 'POST' });
+      if (res.ok) setAiAnalysis(await res.json());
+    } catch (err) {
+      showToast("AI Diagnostic failed", "error");
+    } finally {
+      setIsAiLoading(false);
+    }
+  };
+
+  const handleDownloadReport = async (type = 'security') => {
+    try {
+      showToast(`Generating ${type} report...`, "info");
+      const genRes = await apiFetch('/enterprise/reports/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ report_type: type, format: 'csv' })
+      });
+      
+      if (!genRes.ok) {
+        const errorData = await genRes.json().catch(() => ({}));
+        const detail = typeof errorData.detail === 'object' ? JSON.stringify(errorData.detail) : errorData.detail;
+        throw new Error(detail || `Server error ${genRes.status}`);
+      }
+      const { id } = await genRes.json();
+      
+      // Trigger download using a hidden link
+      const downloadUrl = `${API.BASE_URL}/enterprise/reports/${id}/download`;
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.setAttribute('download', `report_${type}.csv`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      
+      showToast("Report download started", "success");
+    } catch (err) {
+      console.error("Report download failed", err);
+      showToast(`Failed: ${err.message}`, "error");
+    }
+  };
+
+  const handleDevAction = async (endpoint, label) => {
+    try {
+      showToast(`${label} in progress...`, "info");
+      const res = await apiFetch(`/dev/${endpoint}`, { 
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      
+      if (res.ok) {
+        const data = await res.json();
+        showToast(data.message || `${label} completed successfully`, "success");
+      } else {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Operation failed");
+      }
+    } catch (err) {
+      console.error(`${label} failed`, err);
+      showToast(`Failed: ${err.message}`, "error");
+    }
   };
 
   if (loading) {
     return (
-      <div className="h-64 flex items-center justify-center">
-        <Loader className="animate-spin text-slate-400" size={32} />
+      <div className="h-screen flex flex-col items-center justify-center bg-slate-900">
+        <motion.div 
+          animate={{ rotate: 360 }} 
+          transition={{ repeat: Infinity, duration: 2, ease: "linear" }}
+          className="relative"
+        >
+          <div className="w-16 h-16 rounded-full border-t-2 border-r-2 border-indigo-500" />
+          <Brain className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 text-indigo-400" size={24} />
+        </motion.div>
+        <p className="text-slate-400 mt-4 font-mono animate-pulse">Initializing Command Center...</p>
       </div>
     );
   }
 
-  const activeSchools = schools.filter(s => s.is_active).length;
-  const totalUsers = systemStats.totalStudents + systemStats.totalTeachers;
-  const activeSubs = schools.filter(s => s.subscription_status === 'Active').length;
-
-  const planData = [];
-  const planCounts = {};
-  schools.forEach(s => { planCounts[s.subscription_plan] = (planCounts[s.subscription_plan] || 0) + 1; });
-  Object.entries(planCounts).forEach(([name, value]) => planData.push({ name, value }));
-
-  const schoolUsageData = schools.map(s => ({
-    name: s.name.length > 12 ? s.name.slice(0, 12) + '…' : s.name,
-    students: s.max_students ? Math.round((10 / s.max_students) * 100) : 0,
-  })).slice(0, 8);
-
-  const statusData = [
-    { name: 'Active', value: activeSchools },
-    { name: 'Inactive', value: schools.length - activeSchools },
-  ].filter(d => d.value > 0);
-
   return (
-    <div className="space-y-6">
-      {toast && (
-        <div className="fixed top-4 right-4 z-50 px-4 py-2 rounded-lg text-sm font-medium shadow-lg bg-green-600 text-white">
-          {toast}
-        </div>
-      )}
+    <div className="min-h-screen bg-[#0f172a] text-slate-200 pb-12 overflow-x-hidden w-full">
+      {/* Toast Notification */}
+      <AnimatePresence>
+        {toast && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            className={`fixed top-6 right-6 z-[100] px-6 py-3 rounded-2xl shadow-2xl flex items-center gap-3 border ${
+              toast.type === 'error' ? 'bg-red-500/20 border-red-500/50 text-red-200' : 'bg-indigo-500/20 border-indigo-500/50 text-indigo-200'
+            }`}
+          >
+            {toast.type === 'error' ? <AlertTriangle size={18} /> : <Zap size={18} />}
+            <span className="font-medium">{toast.msg}</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Dashboard</h1>
-          <p className="text-sm text-slate-500 mt-0.5">Platform overview and management</p>
-        </div>
-        <button
-          onClick={() => navigate('/schools')}
-          className="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white text-sm font-medium rounded-lg transition-colors"
-        >
-          Add School
-        </button>
-      </div>
-
-      {/* Stats Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Total Schools" value={schools.length} icon={School} trend={activeSchools > 0 ? `${activeSchools} active` : 'none'} color="violet" />
-        <StatCard title="Total Users" value={totalUsers} icon={Users} trend={`${systemStats.totalStudents} students, ${systemStats.totalTeachers} teachers`} color="indigo" />
-        <StatCard title="Active Subscriptions" value={activeSubs} icon={CreditCard} trend={`$${schools.length * 299}/mo revenue`} color="emerald" />
-        <StatCard title="System Status" value={healthData.database === 'Connected' ? 'Online' : 'Offline'} icon={Activity} trend={`v${healthData.version || '2.0'}`} color={healthData.database === 'Connected' ? 'green' : 'red'} />
-      </div>
-
-      {/* Charts Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Schools Table */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-slate-200 shadow-sm">
-          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-            <div>
-              <h3 className="text-sm font-semibold text-slate-800">Schools</h3>
-              <p className="text-xs text-slate-400 mt-0.5">{schools.length} registered</p>
+      {/* Header */}
+      <header className="sticky top-0 z-40 bg-[#0f172a]/90 backdrop-blur-xl border-b border-slate-800 px-4 md:px-8 py-4">
+        <div className="flex flex-col sm:flex-row items-center justify-between max-w-[1600px] mx-auto gap-4">
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <div className="p-2 bg-indigo-500/10 rounded-xl border border-indigo-500/20 shrink-0">
+              <Shield className="text-indigo-400" size={20} />
             </div>
-            <button onClick={() => navigate('/schools')} className="text-xs font-medium text-amber-600 hover:text-amber-700">
-              Manage
-            </button>
-          </div>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-100">
-                  <th className="text-left px-5 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">School</th>
-                  <th className="text-left px-5 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Plan</th>
-                  <th className="text-left px-5 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Status</th>
-                  <th className="text-left px-5 py-3 text-xs font-medium text-slate-400 uppercase tracking-wider">Limits</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {schools.length === 0 ? (
-                  <tr><td colSpan={4} className="px-5 py-12 text-center text-slate-400">No schools yet. Create your first school to get started.</td></tr>
-                ) : (
-                  schools.map((school) => (
-                    <tr key={school.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-3">
-                          <div className="w-8 h-8 rounded-lg bg-violet-100 flex items-center justify-center text-violet-600">
-                            <School size={14} />
-                          </div>
-                          <div>
-                            <p className="font-medium text-slate-800">{school.name}</p>
-                            <p className="text-[10px] text-slate-400 font-mono">{school.code}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3">
-                        <PlanBadge plan={school.subscription_plan} />
-                      </td>
-                      <td className="px-5 py-3">
-                        <span className={`text-xs font-medium px-2 py-1 rounded-full ${school.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                          {school.is_active ? 'Active' : 'Inactive'}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3 text-slate-500 text-xs">
-                        {school.max_students} students / {school.max_teachers} teachers
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-
-        {/* Right Column */}
-        <div className="space-y-6">
-          {/* Subscription Chart */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-            <h3 className="text-sm font-semibold text-slate-800 mb-4">Subscriptions</h3>
-            {planData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={180}>
-                <PieChart>
-                  <Pie data={planData} cx="50%" cy="50%" innerRadius={50} outerRadius={75} paddingAngle={3} dataKey="value" strokeWidth={0}>
-                    {planData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <div className="h-[180px] flex items-center justify-center text-slate-400 text-xs">No data</div>
-            )}
-            <div className="flex flex-wrap gap-3 mt-2">
-              {planData.map((d, i) => (
-                <div key={d.name} className="flex items-center gap-1.5 text-xs">
-                  <div className="w-2 h-2 rounded-full" style={{ backgroundColor: CHART_COLORS[i % CHART_COLORS.length] }} />
-                  <span className="text-slate-500">{d.name}</span>
-                  <span className="font-medium text-slate-700">{d.value}</span>
-                </div>
-              ))}
+            <div className="min-w-0">
+              <h1 className="text-lg md:text-xl font-black text-white tracking-tight flex items-center gap-2 truncate">
+                COMMAND_CENTER
+                <span className="text-[8px] md:text-[10px] bg-indigo-500 text-white px-1.5 py-0.5 rounded-full font-bold uppercase tracking-widest shrink-0">v2.1</span>
+              </h1>
+              <p className="text-[10px] text-slate-500 font-medium truncate">Infrastructure Management</p>
             </div>
           </div>
 
-          {/* System Health */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-            <h3 className="text-sm font-semibold text-slate-800 mb-4">System Health</h3>
-            <div className="space-y-3">
-              <HealthItem icon={Database} label="Database" status={healthData.database} ok={healthData.database === 'Connected'} />
-              <HealthItem icon={Server} label="Backend API" status={healthData.status === 'ok' ? 'Running' : 'Down'} ok={healthData.status === 'ok'} />
-              <HealthItem icon={Globe} label="Frontend" status="Online" ok={true} />
-              <HealthItem icon={Zap} label="Version" status={healthData.version || '2.0.0'} ok={true} />
+          <div className="flex items-center justify-between sm:justify-end gap-2 w-full sm:w-auto border-t sm:border-0 border-slate-800 pt-3 sm:pt-0">
+            <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-800/50 rounded-lg border border-slate-700">
+              <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+              <span className="text-[8px] font-bold text-slate-400 uppercase tracking-wider">LIVE</span>
             </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Enterprise Sections */}
-      <div className="border-t border-slate-200 pt-6 mt-6">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900">Enterprise Suite</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Advanced management tools</p>
-          </div>
-          <button onClick={fetchData} className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-slate-100 text-slate-600 rounded-lg hover:bg-slate-200 transition-colors">
-            <RefreshCw size={12} /> Refresh All
-          </button>
-        </div>
-
-        {/* Enterprise Stats Row */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3 mb-6">
-          <EntStatCard
-            label="Incidents"
-            value={securityData?.active_incidents ?? 0}
-            icon={Shield}
-            color={securityData?.critical_incidents > 0 ? 'red' : 'green'}
-            detail={`${securityData?.blocked_ips ?? 0} blocked IPs`}
-          />
-          <EntStatCard
-            label="Revenue"
-            value={billingData?.total_revenue ? `${(billingData.total_revenue / 1000).toFixed(1)}K` : '0'}
-            icon={DollarSign}
-            color="green"
-            detail={`MRR: ${billingData?.mrr ?? 0}`}
-          />
-          <EntStatCard
-            label="Churn"
-            value={`${billingData?.churn_rate ?? 0}%`}
-            icon={TrendingDown}
-            color={billingData?.churn_rate > 10 ? 'red' : 'green'}
-            detail={`LTV: ${billingData?.ltv ?? 0}`}
-          />
-          <EntStatCard
-            label="Backups"
-            value={backupsData.length}
-            icon={HardDrive}
-            color="blue"
-            detail={backupsData.length > 0 ? `${backupsData[0].size_mb}MB last` : 'No backups'}
-          />
-          <EntStatCard
-            label="Unread Alerts"
-            value={alertsData.notifications?.length ?? 0}
-            icon={Bell}
-            color={alertsData.notifications?.length > 0 ? 'amber' : 'green'}
-            detail={`${alertsData.rules?.filter(r => r.enabled).length ?? 0} active rules`}
-          />
-          <EntStatCard
-            label="Integrations"
-            value={integrationsData.filter(i => i.is_active).length}
-            icon={Plug}
-            color="indigo"
-            detail={`${integrationsData.length} total`}
-          />
-          <EntStatCard
-            label="Uptime"
-            value={systemInfo ? `${Math.round(systemInfo.uptime_seconds / 60)}m` : '-'}
-            icon={Server}
-            color="green"
-            detail={`PID: ${systemInfo?.pid ?? '-'}`}
-          />
-        </div>
-
-        {/* Security + Alerts Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          {/* Security Center */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Shield size={16} className="text-red-500" />
-                <h3 className="text-sm font-semibold text-slate-800">Security Center</h3>
-              </div>
-              <button onClick={() => navigate('/dev-console')} className="text-xs font-medium text-amber-600 hover:text-amber-700">Open</button>
-            </div>
-            <div className="p-5 space-y-3">
-              {securityData ? (
-                <>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-red-50 rounded-lg p-3 text-center">
-                      <p className="text-lg font-bold text-red-700">{securityData.active_incidents}</p>
-                      <p className="text-[10px] text-red-500">Active Incidents</p>
-                    </div>
-                    <div className="bg-orange-50 rounded-lg p-3 text-center">
-                      <p className="text-lg font-bold text-orange-700">{securityData.failed_logins_today}</p>
-                      <p className="text-[10px] text-orange-500">Failed Logins (24h)</p>
-                    </div>
-                  </div>
-                  {securityData.critical_incidents > 0 && (
-                    <div className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg">
-                      <AlertTriangle size={14} className="text-red-600 flex-shrink-0" />
-                      <p className="text-xs text-red-700">{securityData.critical_incidents} critical incident{securityData.critical_incidents > 1 ? 's' : ''} need attention</p>
-                    </div>
-                  )}
-                  {securityData.top_attacker_ips?.length > 0 && (
-                    <div>
-                      <p className="text-[10px] text-slate-400 mb-1">Top Attacker IPs</p>
-                      {securityData.top_attacker_ips.slice(0, 3).map((ip, i) => (
-                        <div key={i} className="flex items-center justify-between text-xs py-1">
-                          <span className="font-mono text-slate-600">{ip.ip}</span>
-                          <span className="text-red-500 font-medium">{ip.count} hits</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="flex items-center justify-center py-6 text-slate-400"><Loader size={16} className="animate-spin mr-2" />Loading...</div>
-              )}
-            </div>
-          </div>
-
-          {/* Alerts */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Bell size={16} className="text-amber-500" />
-                <h3 className="text-sm font-semibold text-slate-800">Alerts</h3>
-                {alertsData.notifications?.length > 0 && (
-                  <span className="bg-red-100 text-red-600 text-[10px] font-bold px-1.5 py-0.5 rounded-full">{alertsData.notifications.length}</span>
-                )}
-              </div>
-              <button onClick={() => navigate('/dev-console')} className="text-xs font-medium text-amber-600 hover:text-amber-700">Open</button>
-            </div>
-            <div className="p-5 space-y-2 max-h-[220px] overflow-y-auto">
-              {alertsData.notifications?.length > 0 ? (
-                alertsData.notifications.map(n => (
-                  <div key={n.id} className="flex items-start gap-2 p-2 rounded-lg bg-slate-50">
-                    <div className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${n.severity === 'critical' ? 'bg-red-500' : n.severity === 'high' ? 'bg-orange-500' : 'bg-amber-500'}`} />
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium text-slate-700 truncate">{n.title}</p>
-                      <p className="text-[10px] text-slate-400 truncate">{n.message}</p>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-6 text-slate-400 text-xs">No active alerts</div>
-              )}
-            </div>
-          </div>
-
-          {/* Live Feed */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Rss size={16} className="text-green-500" />
-                <h3 className="text-sm font-semibold text-slate-800">Live Feed</h3>
-                <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              </div>
-            </div>
-            <div className="p-5 space-y-2 max-h-[220px] overflow-y-auto">
-              {feedData.length > 0 ? (
-                feedData.map(e => (
-                  <div key={e.id} className="flex items-center gap-2 text-xs">
-                    <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                      e.event_type.includes('created') ? 'bg-green-500' :
-                      e.event_type.includes('login') ? 'bg-blue-500' :
-                      e.event_type.includes('payment') ? 'bg-amber-500' : 'bg-slate-400'
-                    }`} />
-                    <span className="font-mono text-[10px] text-slate-400 w-16 truncate">{e.event_type.split('_').pop()}</span>
-                    <span className="text-slate-600 truncate flex-1">{e.user_email || 'system'}</span>
-                    <span className="text-[10px] text-slate-400 whitespace-nowrap">{e.ago}</span>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-6 text-slate-400 text-xs">No recent activity</div>
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Billing + Quick Actions Row */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
-          {/* Billing */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <CreditCard size={16} className="text-green-500" />
-                <h3 className="text-sm font-semibold text-slate-800">Billing</h3>
-              </div>
-              <button onClick={() => navigate('/dev-console')} className="text-xs font-medium text-amber-600 hover:text-amber-700">Details</button>
-            </div>
-            <div className="p-5">
-              {billingData ? (
-                <>
-                  <div className="grid grid-cols-2 gap-3 mb-4">
-                    <div className="bg-green-50 rounded-lg p-3 text-center">
-                      <p className="text-lg font-bold text-green-700">{billingData.total_revenue.toLocaleString()}</p>
-                      <p className="text-[10px] text-green-500">Total Revenue</p>
-                    </div>
-                    <div className="bg-blue-50 rounded-lg p-3 text-center">
-                      <p className="text-lg font-bold text-blue-700">{billingData.mrr.toLocaleString()}</p>
-                      <p className="text-[10px] text-blue-500">MRR</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between text-xs py-2 border-t border-slate-100">
-                    <span className="text-slate-500">LTV</span>
-                    <span className="font-medium text-slate-700">{billingData.ltv.toLocaleString()}</span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs py-2 border-t border-slate-100">
-                    <span className="text-slate-500">Churn Rate</span>
-                    <span className={`font-medium ${billingData.churn_rate > 10 ? 'text-red-600' : 'text-green-600'}`}>{billingData.churn_rate}%</span>
-                  </div>
-                  <div className="flex items-center justify-between text-xs py-2 border-t border-slate-100">
-                    <span className="text-slate-500">Active Schools</span>
-                    <span className="font-medium text-slate-700">{billingData.active_schools}</span>
-                  </div>
-                </>
-              ) : (
-                <div className="flex items-center justify-center py-6 text-slate-400"><Loader size={16} className="animate-spin mr-2" />Loading...</div>
-              )}
-            </div>
-          </div>
-
-          {/* Backups */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <HardDrive size={16} className="text-blue-500" />
-                <h3 className="text-sm font-semibold text-slate-800">Backups</h3>
-              </div>
-              <button onClick={async () => {
-                const res = await fetch(`${API}/enterprise/backups/create`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: JSON.stringify({ type: 'manual' }) });
-                if (res.ok) { const d = await res.json(); showToast(`Backup created: ${d.filename}`); fetchData(); }
-              }} className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium bg-green-50 text-green-600 rounded hover:bg-green-100">
-                <HardDrive size={10} /> Create
+            <div className="flex items-center gap-2">
+              <button 
+                onClick={fetchAllData}
+                className="p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-lg transition-all"
+              >
+                <RefreshCw size={16} />
+              </button>
+              <button 
+                onClick={() => navigate('/schools')}
+                className="flex items-center gap-2 px-3 py-2 bg-indigo-600 hover:bg-indigo-500 text-white text-[10px] font-black rounded-lg transition-all shadow-lg shadow-indigo-600/20 uppercase tracking-widest"
+              >
+                <School size={14} /> <span className="hidden xs:inline">New Tenant</span>
               </button>
             </div>
-            <div className="p-5">
-              {backupsData.length > 0 ? (
-                <div className="space-y-2">
-                  {backupsData.slice(0, 4).map(b => (
-                    <div key={b.id} className="flex items-center justify-between text-xs p-2 bg-slate-50 rounded-lg">
-                      <div>
-                        <p className="font-mono text-slate-700 truncate max-w-[150px]">{b.filename}</p>
-                        <p className="text-[10px] text-slate-400">{b.size_mb}MB &middot; {new Date(b.created_at).toLocaleDateString()}</p>
-                      </div>
-                      <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded ${b.status === 'completed' ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>{b.status}</span>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center py-6 text-slate-400 text-xs">No backups yet</div>
-              )}
-            </div>
           </div>
+        </div>
+      </header>
 
-          {/* Integrations Status */}
-          <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
-            <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Plug size={16} className="text-indigo-500" />
-                <h3 className="text-sm font-semibold text-slate-800">Integrations</h3>
-              </div>
+      <main className="max-w-[1600px] mx-auto p-4 md:p-8">
+        <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+          
+          {/* Left Column: Metrics & Analytics */}
+          <div className="lg:col-span-3 space-y-8">
+            
+            {/* Top Stat Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <PlatformStat 
+                icon={School} 
+                label="Total Schools" 
+                value={schools.length} 
+                subValue={`${analytics?.activeVsInactive.active || 0} Active`}
+                color="indigo" 
+              />
+              <PlatformStat 
+                icon={Users} 
+                label="Platform Users" 
+                value={securityStats?.total || 0} 
+                subValue={`+${analytics?.growth.newSchoolsThisMonth || 0} this month`}
+                color="violet" 
+              />
+              <PlatformStat 
+                icon={DollarSign} 
+                label="Total Revenue" 
+                value={`$${(analytics?.revenuePerSchool.reduce((a, b) => a + b.value, 0) || 0).toLocaleString()}`} 
+                subValue={`${analytics?.growth.growthRate.toFixed(1)}% Growth`}
+                color="emerald" 
+              />
+              <PlatformStat 
+                icon={Activity} 
+                label="System Health" 
+                value={systemInfo ? `${Math.round(systemInfo.cpu_percent)}%` : '---'} 
+                subValue={`${systemInfo?.memory_percent || 0}% RAM Usage`}
+                color={systemInfo?.cpu_percent > 80 ? 'red' : 'blue'} 
+              />
             </div>
-            <div className="p-5 space-y-3">
-              {integrationsData.length > 0 ? (
-                integrationsData.map(int => (
-                  <div key={int.service} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <span className="text-lg">{int.icon}</span>
-                      <div>
-                        <p className="text-xs font-medium text-slate-700">{int.name}</p>
-                        {int.last_tested && <p className="text-[10px] text-slate-400">Tested: {new Date(int.last_tested).toLocaleDateString()}</p>}
+
+            {/* Main Content Tabs */}
+            <div className="bg-slate-800/40 border border-slate-700/50 rounded-3xl overflow-hidden backdrop-blur-sm">
+              <div className="flex border-b border-slate-700/50 overflow-x-auto custom-scrollbar whitespace-nowrap">
+                <TabButton active={activeTab === 'overview'} onClick={() => setActiveTab('overview')} icon={TrendingUp} label="Growth" />
+                <TabButton active={activeTab === 'schools'} onClick={() => setActiveTab('schools')} icon={AppWindow} label="Tenants" />
+                <TabButton active={activeTab === 'security'} onClick={() => setActiveTab('security')} icon={Shield} label="Security" />
+                <TabButton active={activeTab === 'dev'} onClick={() => setActiveTab('dev')} icon={Terminal} label="Dev Ops" />
+              </div>
+
+              <div className="p-8">
+                {activeTab === 'overview' && (
+                  <div className="space-y-8">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                      <div className="bg-slate-900/50 rounded-2xl p-6 border border-slate-800">
+                        <h3 className="text-sm font-bold text-slate-400 mb-6 flex items-center gap-2">
+                          <DollarSign size={16} /> Revenue per Tenant
+                        </h3>
+                        <div className="h-[250px]">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={analytics?.revenuePerSchool || []}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#1e293b" />
+                              <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10}} />
+                              <YAxis axisLine={false} tickLine={false} tick={{fill: '#64748b', fontSize: 10}} />
+                              <Tooltip 
+                                contentStyle={{backgroundColor: '#0f172a', border: '1px solid #334155', borderRadius: '12px'}}
+                                itemStyle={{color: '#818cf8'}}
+                              />
+                              <Bar dataKey="value" fill="#6366f1" radius={[6, 6, 0, 0]} />
+                            </BarChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+
+                      <div className="bg-slate-900/50 rounded-2xl p-6 border border-slate-800">
+                        <h3 className="text-sm font-bold text-slate-400 mb-6 flex items-center gap-2">
+                          <PieChart size={16} /> Subscription Mix
+                        </h3>
+                        <div className="h-[250px]">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie 
+                                data={analytics?.planDistribution || []} 
+                                cx="50%" cy="50%" innerRadius={60} outerRadius={80} 
+                                paddingAngle={5} dataKey="count" nameKey="plan"
+                                strokeWidth={0}
+                              >
+                                {analytics?.planDistribution.map((_, i) => (
+                                  <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
+                                ))}
+                              </Pie>
+                              <Tooltip />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
                       </div>
                     </div>
-                    <span className={`text-[10px] font-medium px-2 py-0.5 rounded-full ${int.is_active ? 'bg-green-100 text-green-600' : 'bg-slate-100 text-slate-500'}`}>{int.is_active ? 'Active' : 'Off'}</span>
                   </div>
-                ))
-              ) : (
-                <div className="text-center py-6 text-slate-400 text-xs">No integrations configured</div>
-              )}
+                )}
+
+                {activeTab === 'schools' && (
+                  <div className="overflow-x-auto">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="text-left text-[10px] text-slate-500 uppercase tracking-widest border-b border-slate-700/50">
+                          <th className="pb-4 font-black">School Name</th>
+                          <th className="pb-4 font-black">Code</th>
+                          <th className="pb-4 font-black">Plan</th>
+                          <th className="pb-4 font-black">Status</th>
+                          <th className="pb-4 font-black text-right">Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800/50">
+                        {schools.map((school) => (
+                          <tr key={school.id} className="group hover:bg-slate-800/30 transition-all">
+                            <td className="py-4">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-xl bg-indigo-500/10 flex items-center justify-center text-indigo-400 border border-indigo-500/20 group-hover:scale-110 transition-transform">
+                                  <School size={18} />
+                                </div>
+                                <span className="font-bold text-slate-200">{school.name}</span>
+                              </div>
+                            </td>
+                            <td className="py-4 font-mono text-xs text-slate-500">{school.code}</td>
+                            <td className="py-4">
+                              <span className={`px-2 py-1 rounded-md text-[10px] font-black uppercase ${
+                                school.subscription_plan === 'Enterprise' ? 'bg-amber-500/10 text-amber-500 border border-amber-500/20' :
+                                school.subscription_plan === 'Premium' ? 'bg-indigo-500/10 text-indigo-500 border border-indigo-500/20' :
+                                'bg-slate-700 text-slate-400'
+                              }`}>
+                                {school.subscription_plan}
+                              </span>
+                            </td>
+                            <td className="py-4">
+                              <div className="flex items-center gap-1.5">
+                                <div className={`w-1.5 h-1.5 rounded-full ${school.is_active ? 'bg-green-500 shadow-[0_0_8px_#22c55e]' : 'bg-red-500'}`} />
+                                <span className="text-xs font-medium">{school.is_active ? 'Active' : 'Locked'}</span>
+                              </div>
+                            </td>
+                            <td className="py-4 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                <button 
+                                  onClick={() => handleImpersonate(school.id)}
+                                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-indigo-600 text-slate-300 hover:text-white text-[10px] font-bold rounded-lg border border-slate-700 transition-all"
+                                >
+                                  <UserCheck size={12} /> <span className="hidden sm:inline">Impersonate</span>
+                                </button>
+                                <button 
+                                  onClick={() => handleDeleteSchool(school.id, school.name)}
+                                  className="inline-flex items-center gap-2 px-3 py-1.5 bg-slate-800 hover:bg-red-600 text-slate-300 hover:text-white text-[10px] font-bold rounded-lg border border-slate-700 transition-all"
+                                >
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                {activeTab === 'security' && (
+                  <div className="space-y-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <SecurityMetric label="Blocked IPs" value={securityStats?.rate_blocks || 0} icon={Ban} color="red" />
+                      <SecurityMetric label="Failed Logins" value={securityStats?.failed_logins || 0} icon={AlertCircle} color="orange" />
+                      <SecurityMetric label="System Alerts" value={securityStats?.recent_issues.length || 0} icon={Bell} color="amber" />
+                    </div>
+                    
+                    <div className="bg-slate-900/50 rounded-2xl border border-slate-800 overflow-hidden">
+                      <div className="p-4 border-b border-slate-800 bg-slate-800/50 flex items-center justify-between">
+                        <h3 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Global Security Events</h3>
+                        <button 
+                          onClick={() => handleDownloadReport('security')}
+                          className="text-[10px] text-indigo-400 font-bold hover:underline"
+                        >
+                          Download Report
+                        </button>
+                      </div>
+                      <div className="divide-y divide-slate-800">
+                        {securityStats?.top_failed_ips.map((ip, i) => (
+                          <div key={i} className="p-3 flex items-center justify-between text-xs">
+                            <div className="flex items-center gap-3">
+                              <AlertTriangle size={14} className="text-red-500" />
+                              <span className="font-mono text-slate-400">{ip.ip}</span>
+                            </div>
+                            <span className="text-red-400 font-bold">{ip.count} Brute Force Attempts</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {activeTab === 'dev' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <DevActionCard 
+                      icon={RotateCcw} 
+                      title="Server Control" 
+                      desc="Hot-reload system services or restart backend workers." 
+                      action="Restart Server"
+                      color="red"
+                      onClick={() => handleDevAction('restart-server', 'Server Restart')}
+                    />
+                    <DevActionCard 
+                      icon={Zap} 
+                      title="Performance" 
+                      desc="Flush Redis cache and optimize SQL query pool." 
+                      action="Purge Cache"
+                      color="amber"
+                      onClick={() => handleDevAction('purge-cache', 'Cache Purge')}
+                    />
+                    <DevActionCard 
+                      icon={Database} 
+                      title="Database Maint" 
+                      desc="Run pending migrations and health check tables." 
+                      action="Migrate DB"
+                      color="green"
+                      onClick={() => handleDevAction('migrate-db', 'DB Migration')}
+                    />
+                    <DevActionCard 
+                      icon={HardDrive} 
+                      title="Backup Center" 
+                      desc="Create a full system snapshot and upload to S3." 
+                      action="Snapshot Now"
+                      color="blue"
+                      onClick={() => handleDevAction('create-snapshot', 'Snapshot')}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* Quick Actions */}
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
-          <div className="px-5 py-4 border-b border-slate-100">
-            <h3 className="text-sm font-semibold text-slate-800">Quick Actions</h3>
-          </div>
-          <div className="p-5 grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-3">
-            <QuickAction icon={Shield} label="Block IP" color="red" onClick={() => { navigate('/dev-console'); }} />
-            <QuickAction icon={Lock} label="Reset Passwords" color="orange" onClick={() => { navigate('/dev-console'); }} />
-            <QuickAction icon={RotateCcw} label="Restart Server" color="red" onClick={async () => { const res = await fetch(`${API}/enterprise/reload/restart`, { method: 'POST', credentials: 'include' }); if (res.ok) showToast('Restart signal sent'); }} />
-            <QuickAction icon={Zap} label="Clear Cache" color="amber" onClick={async () => { const res = await fetch(`${API}/enterprise/reload/clear-cache`, { method: 'POST', credentials: 'include' }); if (res.ok) showToast('Cache cleared'); }} />
-            <QuickAction icon={EyeOff} label="Anonymize" color="slate" onClick={() => { navigate('/dev-console'); }} />
-            <QuickAction icon={FlaskConical} label="A/B Tests" color="violet" onClick={() => { navigate('/dev-console'); }} />
-            <QuickAction icon={FileText} label="Reports" color="blue" onClick={() => { navigate('/dev-console'); }} />
-            <QuickAction icon={ArrowUpRight} label="Migrations" color="green" onClick={() => { navigate('/dev-console'); }} />
-          </div>
-        </div>
-      </div>
-
-      {/* Pending Approvals */}
-      {pendingRequests.length > 0 && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
-          <div className="px-5 py-4 border-b border-slate-100 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <h3 className="text-sm font-semibold text-slate-800">Pending Approvals</h3>
-              <span className="bg-red-100 text-red-600 text-[10px] font-bold px-2 py-0.5 rounded-full">{pendingRequests.length}</span>
-            </div>
-          </div>
-          <div className="divide-y divide-slate-50">
-            {pendingRequests.map((req) => (
-              <div key={req.id} className="px-5 py-3 flex items-center gap-4">
-                <div className="w-9 h-9 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500">
-                  {req.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+          {/* Right Column: AI & Live Feed */}
+          <div className="space-y-8">
+            
+            {/* AI Assistant Card */}
+            <div className="bg-gradient-to-br from-indigo-900/40 to-violet-900/40 border border-indigo-500/30 rounded-3xl p-6 backdrop-blur-md relative overflow-hidden group">
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+                <Brain size={80} />
+              </div>
+              
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 flex items-center justify-center border border-indigo-500/30">
+                  <Brain className="text-indigo-400" size={20} />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-slate-800 truncate">{req.name}</p>
-                  <p className="text-[10px] text-slate-400">{req.email} · {req.role}</p>
-                </div>
-                <div className="flex gap-2">
-                  <button onClick={() => handleApprove(req.id)} className="px-3 py-1.5 text-xs font-medium bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition-colors">
-                    Approve
-                  </button>
-                  <button onClick={() => handleReject(req.id)} className="px-3 py-1.5 text-xs font-medium bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors">
-                    Reject
-                  </button>
+                <div>
+                  <h3 className="text-sm font-black text-white uppercase tracking-wider">AI Diagnostic</h3>
+                  <p className="text-[10px] text-indigo-300">System Intelligence Engine</p>
                 </div>
               </div>
-            ))}
+
+              {!aiAnalysis ? (
+                <div className="space-y-4">
+                  <p className="text-xs text-indigo-200/70 leading-relaxed italic">
+                    "Connect to the intelligence engine to analyze platform logs and detect hidden anomalies."
+                  </p>
+                  <button 
+                    onClick={runAiDiagnostic}
+                    disabled={isAiLoading}
+                    className="w-full py-3 bg-indigo-600 hover:bg-indigo-500 disabled:bg-slate-700 text-white text-xs font-bold rounded-2xl transition-all flex items-center justify-center gap-2"
+                  >
+                    {isAiLoading ? <Loader className="animate-spin" size={14} /> : <Zap size={14} />}
+                    Run AI Analysis
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="p-3 bg-indigo-900/40 rounded-xl border border-indigo-500/20">
+                    <p className="text-[11px] leading-relaxed text-indigo-100">{aiAnalysis.analysis}</p>
+                  </div>
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-black text-indigo-400 uppercase tracking-widest mb-2">Suggestions</p>
+                    {aiAnalysis.suggestions.map((s, i) => (
+                      <div key={i} className="flex items-start gap-2 text-[10px] text-indigo-200/80">
+                        <div className="mt-1 w-1 h-1 rounded-full bg-indigo-500" />
+                        <span>{s}</span>
+                      </div>
+                    ))}
+                  </div>
+                  <button 
+                    onClick={() => setAiAnalysis(null)}
+                    className="w-full py-2 border border-indigo-500/30 text-indigo-400 text-[10px] font-bold rounded-xl hover:bg-indigo-500/10 transition-all"
+                  >
+                    Clear Analysis
+                  </button>
+                </div>
+              )}
+            </div>
+
+            {/* Live Activity Feed */}
+            <div className="bg-slate-800/40 border border-slate-700/50 rounded-3xl overflow-hidden backdrop-blur-sm">
+              <div className="p-6 border-b border-slate-700/50 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Rss size={16} className="text-green-400" />
+                  <h3 className="text-xs font-black text-slate-300 uppercase tracking-widest">Global Activity</h3>
+                </div>
+                <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+              </div>
+              <div className="p-4 space-y-4 max-h-[500px] overflow-y-auto custom-scrollbar">
+                {activityFeed.length > 0 ? activityFeed.map((event, i) => (
+                  <div key={i} className="flex gap-4 group">
+                    <div className="flex flex-col items-center">
+                      <div className={`w-2 h-2 rounded-full mt-1.5 ${
+                        event.type.includes('login') ? 'bg-blue-500' :
+                        event.type.includes('payment') ? 'bg-emerald-500' :
+                        event.type.includes('created') ? 'bg-indigo-500' : 'bg-slate-600'
+                      }`} />
+                      <div className="w-[1px] flex-1 bg-slate-700/50 my-1 group-last:hidden" />
+                    </div>
+                    <div className="pb-4">
+                      <p className="text-[10px] font-black text-slate-500 uppercase tracking-wider mb-1">
+                        {event.type.replace('_', ' ')}
+                      </p>
+                      <p className="text-[11px] text-slate-300 leading-tight">
+                        <span className="font-bold text-indigo-400">{event.user || 'System'}</span>
+                        {event.details && ` - ${event.details}`}
+                      </p>
+                      <p className="text-[9px] text-slate-500 mt-1 font-mono">{event.timestamp.split('T')[1].slice(0, 5)} · {event.ip || 'Local'}</p>
+                    </div>
+                  </div>
+                )) : (
+                  <div className="py-12 text-center text-slate-600 italic text-[10px]">No recent platform signals...</div>
+                )}
+              </div>
+            </div>
+
           </div>
         </div>
-      )}
+      </main>
     </div>
   );
 }
 
-function StatCard({ title, value, icon: Icon, trend, color }) {
+function PlatformStat({ icon: Icon, label, value, subValue, color }) {
   const colors = {
-    violet: { bg: 'bg-violet-50', icon: 'text-violet-600' },
-    indigo: { bg: 'bg-indigo-50', icon: 'text-indigo-600' },
-    emerald: { bg: 'bg-emerald-50', icon: 'text-emerald-600' },
-    green: { bg: 'bg-green-50', icon: 'text-green-600' },
-    red: { bg: 'bg-red-50', icon: 'text-red-600' },
+    indigo: 'from-indigo-500/20 to-indigo-500/5 text-indigo-400 border-indigo-500/20',
+    violet: 'from-violet-500/20 to-violet-500/5 text-violet-400 border-violet-500/20',
+    emerald: 'from-emerald-500/20 to-emerald-500/5 text-emerald-400 border-emerald-500/20',
+    blue: 'from-blue-500/20 to-blue-500/5 text-blue-400 border-blue-500/20',
+    red: 'from-red-500/20 to-red-500/5 text-red-400 border-red-500/20',
   };
-  const c = colors[color] || colors.violet;
 
   return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-5">
-      <div className="flex items-center justify-between mb-3">
-        <div className={`p-2.5 rounded-lg ${c.bg}`}>
-          <Icon size={20} className={c.icon} />
-        </div>
+    <div className={`bg-gradient-to-br ${colors[color]} border rounded-2xl p-4 md:p-6 backdrop-blur-sm`}>
+      <div className="flex items-center justify-between mb-2 md:mb-4">
+        <Icon size={18} className="md:w-5 md:h-5" />
       </div>
-      <p className="text-xs font-medium text-slate-400 uppercase tracking-wider">{title}</p>
-      <p className="text-2xl font-bold text-slate-800 mt-1">{value}</p>
-      {trend && <p className="text-xs text-slate-400 mt-1">{trend}</p>}
+      <p className="text-[8px] md:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</p>
+      <h4 className="text-lg md:text-2xl font-black text-white tracking-tight">{value}</h4>
+      <p className="text-[8px] md:text-[10px] font-bold text-slate-500 mt-1">{subValue}</p>
     </div>
   );
 }
 
-function PlanBadge({ plan }) {
-  const styles = {
-    Free: 'bg-slate-100 text-slate-600',
-    Basic: 'bg-blue-100 text-blue-700',
-    Premium: 'bg-violet-100 text-violet-700',
-    Enterprise: 'bg-amber-100 text-amber-700',
-  };
-  return <span className={`text-xs font-medium px-2 py-1 rounded-md ${styles[plan] || styles.Free}`}>{plan}</span>;
-}
-
-function HealthItem({ icon: Icon, label, status, ok }) {
+function TabButton({ active, onClick, icon: Icon, label }) {
   return (
-    <div className="flex items-center justify-between">
-      <div className="flex items-center gap-2.5">
-        <Icon size={14} className="text-slate-400" />
-        <span className="text-sm text-slate-600">{label}</span>
-      </div>
-      <div className="flex items-center gap-1.5">
-        <div className={`w-1.5 h-1.5 rounded-full ${ok ? 'bg-green-500' : 'bg-red-500'}`} />
-        <span className="text-xs font-medium text-slate-700">{status}</span>
-      </div>
-    </div>
-  );
-}
-
-function EntStatCard({ label, value, icon: Icon, color, detail }) {
-  const colors = {
-    red: { bg: 'bg-red-50', icon: 'text-red-600', value: 'text-red-700' },
-    green: { bg: 'bg-green-50', icon: 'text-green-600', value: 'text-green-700' },
-    blue: { bg: 'bg-blue-50', icon: 'text-blue-600', value: 'text-blue-700' },
-    amber: { bg: 'bg-amber-50', icon: 'text-amber-600', value: 'text-amber-700' },
-    indigo: { bg: 'bg-indigo-50', icon: 'text-indigo-600', value: 'text-indigo-700' },
-    slate: { bg: 'bg-slate-50', icon: 'text-slate-600', value: 'text-slate-700' },
-    orange: { bg: 'bg-orange-50', icon: 'text-orange-600', value: 'text-orange-700' },
-    violet: { bg: 'bg-violet-50', icon: 'text-violet-600', value: 'text-violet-700' },
-  };
-  const c = colors[color] || colors.slate;
-  return (
-    <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-3">
-      <div className={`w-7 h-7 rounded-lg ${c.bg} flex items-center justify-center mb-2`}>
-        <Icon size={14} className={c.icon} />
-      </div>
-      <p className="text-[10px] text-slate-400 uppercase tracking-wider">{label}</p>
-      <p className={`text-lg font-bold ${c.value}`}>{value}</p>
-      <p className="text-[10px] text-slate-400 truncate">{detail}</p>
-    </div>
-  );
-}
-
-function QuickAction({ icon: Icon, label, color, onClick }) {
-  const colors = {
-    red: 'bg-red-50 text-red-600 hover:bg-red-100 border-red-100',
-    orange: 'bg-orange-50 text-orange-600 hover:bg-orange-100 border-orange-100',
-    amber: 'bg-amber-50 text-amber-600 hover:bg-amber-100 border-amber-100',
-    green: 'bg-green-50 text-green-600 hover:bg-green-100 border-green-100',
-    blue: 'bg-blue-50 text-blue-600 hover:bg-blue-100 border-blue-100',
-    indigo: 'bg-indigo-50 text-indigo-600 hover:bg-indigo-100 border-indigo-100',
-    violet: 'bg-violet-50 text-violet-600 hover:bg-violet-100 border-violet-100',
-    slate: 'bg-slate-50 text-slate-600 hover:bg-slate-100 border-slate-100',
-  };
-  const c = colors[color] || colors.slate;
-  return (
-    <button onClick={onClick} className={`flex flex-col items-center gap-2 p-3 rounded-xl border ${c} transition-colors`}>
-      <Icon size={18} />
-      <span className="text-[10px] font-medium">{label}</span>
+    <button 
+      onClick={onClick}
+      className={`flex items-center gap-2 px-6 py-4 text-xs font-bold transition-all border-b-2 ${
+        active 
+          ? 'text-white border-indigo-500 bg-indigo-500/5' 
+          : 'text-slate-500 border-transparent hover:text-slate-300 hover:bg-slate-800/30'
+      }`}
+    >
+      <Icon size={14} />
+      {label}
     </button>
+  );
+}
+
+function SecurityMetric({ label, value, icon: Icon, color }) {
+  const colors = {
+    red: 'text-red-400 bg-red-400/10 border-red-400/20',
+    orange: 'text-orange-400 bg-orange-400/10 border-orange-400/20',
+    amber: 'text-amber-400 bg-amber-400/10 border-amber-400/20',
+  };
+  return (
+    <div className={`flex items-center justify-between p-4 rounded-xl border ${colors[color]}`}>
+      <div className="flex items-center gap-3">
+        <Icon size={18} />
+        <span className="text-xs font-bold uppercase tracking-wider">{label}</span>
+      </div>
+      <span className="text-lg font-black">{value}</span>
+    </div>
+  );
+}
+
+function DevActionCard({ icon: Icon, title, desc, action, color, onClick }) {
+  const colors = {
+    red: 'bg-red-500 hover:bg-red-600',
+    amber: 'bg-amber-500 hover:bg-amber-600',
+    green: 'bg-green-500 hover:bg-green-600',
+    blue: 'bg-blue-500 hover:bg-blue-600',
+  };
+  return (
+    <div className="bg-slate-900/50 rounded-2xl p-6 border border-slate-800 flex flex-col justify-between">
+      <div>
+        <div className="w-10 h-10 rounded-xl bg-slate-800 flex items-center justify-center text-slate-400 mb-4">
+          <Icon size={20} />
+        </div>
+        <h4 className="text-sm font-bold text-white mb-2">{title}</h4>
+        <p className="text-[11px] text-slate-500 leading-relaxed">{desc}</p>
+      </div>
+      <button 
+        onClick={onClick}
+        className={`mt-6 w-full py-2 text-xs font-black uppercase tracking-widest text-white rounded-xl transition-all ${colors[color]}`}
+      >
+        {action}
+      </button>
+    </div>
   );
 }

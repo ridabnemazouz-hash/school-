@@ -36,3 +36,7 @@ edusaas.db
 
 # Vite
 .vite/
+
+# Capacitor - auto-generated, run: npx cap add android / npx cap add ios
+frontend/android/
+frontend/ios/

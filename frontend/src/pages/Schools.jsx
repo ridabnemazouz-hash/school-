@@ -1,96 +1,39 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card } from '../components/ui/Card';
-import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '../components/ui/Table';
-import { Button } from '../components/ui/Button';
-import { Modal } from '../components/ui/Modal';
-import { Plus, Search, MoreVertical, Trash2, Edit2, Loader, School, Users, Calendar, CreditCard } from 'lucide-react';
+import { Plus, Search, MoreVertical, Trash2, Edit2, Loader, School, CreditCard, Shield, Users, Activity, ExternalLink, Filter, MapPin, Mail, Phone } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { t } from '../i18n/translations';
-import API from '../config';
-
-function ActionMenu({ school, onDelete, onEdit }) {
-  const { lang } = useLanguage();
-  const [open, setOpen] = useState(false);
-  const ref = React.useRef(null);
-
-  useEffect(() => {
-    function handleClickOutside(e) {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  return (
-    <div className="relative" ref={ref}>
-      <button onClick={() => setOpen(!open)} className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors">
-        <MoreVertical size={18} />
-      </button>
-      {open && (
-        <div className="absolute right-0 mt-1 w-44 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1">
-          <button onClick={() => { onEdit(school); setOpen(false); }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors">
-            <Edit2 size={15} className="text-blue-500" /> {t(lang, 'edit')}
-          </button>
-          <div className="border-t border-slate-100 my-1" />
-          <button onClick={() => { onDelete(school.id); setOpen(false); }} className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors">
-            <Trash2 size={15} /> {t(lang, 'delete')}
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
+import API, { apiFetch } from '../config';
 
 export function Schools() {
   const { lang } = useLanguage();
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
-    if (user && user.role !== 'Super Admin') {
-      navigate('/');
-    }
-  }, [user, navigate]);
-
   const [schools, setSchools] = useState([]);
-  const [schoolAdmins, setSchoolAdmins] = useState({});
   const [loading, setLoading] = useState(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingSchool, setEditingSchool] = useState(null);
-  const [formData, setFormData] = useState({ name: '', code: '', address: '', phone: '', email: '', subscription_plan: 'Free', max_students: 50, max_teachers: 10, super_admin_name: '', super_admin_email: '', super_admin_password: '' });
+  const [formData, setFormData] = useState({ 
+    name: '', code: '', address: '', phone: '', email: '', 
+    subscription_plan: 'Free', max_students: 50, max_teachers: 10, 
+    super_admin_name: '', super_admin_email: '', super_admin_password: '' 
+  });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [search, setSearch] = useState('');
-  const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const [createdAdmin, setCreatedAdmin] = useState(null);
 
   useEffect(() => {
     fetchSchools();
   }, []);
 
   const fetchSchools = async () => {
+    setLoading(true);
     try {
-      const res = await fetch(`${API}/schools/`, { credentials: 'include' });
-      if (res.ok) {
-        const data = await res.json();
-        setSchools(data);
-
-        const admins = {};
-        for (const school of data) {
-          try {
-            const adminRes = await fetch(`${API}/users?role=Super%20Admin&school_id=${school.id}`, { credentials: 'include' });
-            if (adminRes.ok) {
-              const adminData = await adminRes.json();
-              if (adminData.length > 0) {
-                admins[school.id] = { name: adminData[0].name, email: adminData[0].email };
-              }
-            }
-          } catch {}
-        }
-        setSchoolAdmins(admins);
-      }
+      const res = await apiFetch('/schools/');
+      if (res.ok) setSchools(await res.json());
     } catch (err) {
       console.error(err);
     } finally {
@@ -98,344 +41,288 @@ export function Schools() {
     }
   };
 
-  const fetchSchoolStats = async (schoolId) => {
-    try {
-      const res = await fetch(`${API}/schools/${schoolId}/stats`, { credentials: 'include' });
-      if (res.ok) return await res.json();
-    } catch (err) {
-      console.error(err);
-    }
-    return null;
-  };
-
-  const filteredSchools = schools.filter(s =>
-    s.name.toLowerCase().includes(search.toLowerCase()) ||
-    s.code.toLowerCase().includes(search.toLowerCase())
+  const filteredSchools = schools.filter(s => 
+    (s.name || '').toLowerCase().includes(search.toLowerCase()) || 
+    (s.code || '').toLowerCase().includes(search.toLowerCase())
   );
-
-  const handleDelete = async (id) => {
-    try {
-      const res = await fetch(`${API}/schools/${id}`, { method: 'DELETE', credentials: 'include' });
-      if (!res.ok) {
-        const err = await res.json();
-        setError(err.detail || 'Failed to delete school');
-        return;
-      }
-      setSchools(prev => prev.filter(s => s.id !== id));
-      setDeleteConfirm(null);
-      showSuccess(t(lang, 'schoolDeleted'));
-    } catch (err) {
-      setError(err.message);
-    }
-  };
-
-  const handleEdit = (school) => {
-    setEditingSchool(school);
-    setFormData({
-      name: school.name,
-      code: school.code,
-      address: school.address || '',
-      phone: school.phone || '',
-      email: school.email || '',
-      subscription_plan: school.subscription_plan,
-      max_students: school.max_students,
-      max_teachers: school.max_teachers,
-    });
-    setIsModalOpen(true);
-  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
-
+    setSuccess('');
+    
     try {
-      const url = editingSchool ? `${API}/schools/${editingSchool.id}` : `${API}/schools/`;
+      const path = editingSchool ? `/schools/${editingSchool.id}` : '/schools/';
       const method = editingSchool ? 'PUT' : 'POST';
-      const payload = { ...formData };
-      if (editingSchool) {
-        delete payload.super_admin_name;
-        delete payload.super_admin_email;
-        delete payload.super_admin_password;
-      }
-      const res = await fetch(url, {
+      
+      const res = await apiFetch(path, {
         method,
         headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(payload),
+        body: JSON.stringify(formData)
       });
-
-      if (!res.ok) {
-        const err = await res.json();
-        setError(err.detail || 'Failed to save school');
-        return;
-      }
-
-      const data = await res.json();
-
-      if (data.admin_created) {
-        setCreatedAdmin({
-          name: data.admin_name,
-          email: data.admin_email,
-          password: data.admin_password,
-          school: data.name,
-          code: data.code,
+      
+      if (res.ok) {
+        setSuccess(editingSchool ? 'School updated successfully' : 'New school instance provisioned successfully');
+        setIsModalOpen(false);
+        setFormData({ 
+          name: '', code: '', address: '', phone: '', email: '', 
+          subscription_plan: 'Free', max_students: 50, max_teachers: 10, 
+          super_admin_name: '', super_admin_email: '', super_admin_password: '' 
         });
+        fetchSchools();
+      } else {
+        const data = await res.json();
+        setError(data.detail || 'Failed to save school');
       }
-
-      showSuccess(editingSchool ? t(lang, 'schoolUpdated') : t(lang, 'schoolAdded'));
-      setIsModalOpen(false);
-      setEditingSchool(null);
-      setFormData({ name: '', code: '', address: '', phone: '', email: '', subscription_plan: 'Free', max_students: 50, max_teachers: 10, super_admin_name: '', super_admin_email: '', super_admin_password: '' });
-      fetchSchools();
     } catch (err) {
-      setError(err.message);
+      setError('Network error. Please try again.');
     }
   };
 
-  const showSuccess = (msg) => {
-    setSuccess(msg);
-    setTimeout(() => setSuccess(''), 3000);
-  };
-
-  const planColors = {
-    Free: 'bg-slate-100 text-slate-700',
-    Basic: 'bg-blue-100 text-blue-700',
-    Premium: 'bg-purple-100 text-purple-700',
-    Enterprise: 'bg-amber-100 text-amber-700',
+  const handleDelete = async (id, schoolName) => {
+    if (!window.confirm(`Are you absolutely sure you want to delete "${schoolName}"? This will permanently erase ALL associated data.`)) return;
+    
+    setLoading(true);
+    setError('');
+    setSuccess('');
+    try {
+      const res = await apiFetch(`/schools/${id}`, { method: 'DELETE' });
+      
+      if (res.ok) {
+        setSuccess(`School "${schoolName}" deleted successfully.`);
+        // Remove from local state immediately for instant UI feedback
+        setSchools(prev => prev.filter(s => s.id !== id));
+      } else {
+        let errorMsg = 'Failed to delete school.';
+        try {
+          const data = await res.json();
+          errorMsg = typeof data.detail === 'string' ? data.detail : errorMsg;
+        } catch {}
+        setError(errorMsg);
+      }
+    } catch (err) { 
+      setError('Network error. Please try again.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">{t(lang, 'schoolManagement')}</h1>
-          <p className="text-slate-500 mt-1">{t(lang, 'schoolManagementDesc')}</p>
+    <div className="p-8 max-w-[1600px] mx-auto space-y-8 animate-in fade-in duration-500">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-indigo-500/10 rounded-2xl border border-indigo-500/20 shadow-lg shadow-indigo-500/5">
+            <School className="text-indigo-400" size={24} />
+          </div>
+          <div>
+            <h1 className="text-2xl font-black text-white tracking-tight">Active Tenants</h1>
+            <p className="text-sm text-slate-500 font-medium">Infrastructure & subscription management for all school entities</p>
+          </div>
         </div>
-        <Button className="shrink-0" onClick={() => { setEditingSchool(null); setFormData({ name: '', code: '', address: '', phone: '', email: '', subscription_plan: 'Free', max_students: 50, max_teachers: 10, super_admin_name: '', super_admin_email: '', super_admin_password: '' }); setIsModalOpen(true); }}>
-          <Plus size={18} className="mr-2" />
-          {t(lang, 'addSchool')}
-        </Button>
+        <button 
+          onClick={() => { setEditingSchool(null); setFormData({ 
+            name: '', code: '', address: '', phone: '', email: '', 
+            subscription_plan: 'Free', max_students: 50, max_teachers: 10, 
+            super_admin_name: '', super_admin_email: '', super_admin_password: '' 
+          }); setIsModalOpen(true); }}
+          className="flex items-center gap-2 px-6 py-3 bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-black rounded-xl shadow-lg shadow-indigo-600/20 transition-all uppercase tracking-widest"
+        >
+          <Plus size={16} /> New Tenant Instance
+        </button>
       </div>
 
-      {success && (
-        <div className="bg-green-50 border border-green-200 text-green-700 rounded-lg p-3 text-sm">{success}</div>
-      )}
-      {error && (
-        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">{error}</div>
-      )}
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <Card className="flex items-center gap-4 p-5">
-          <div className="p-3 bg-mauve-100 rounded-lg"><School className="text-mauve-600" size={24} /></div>
-          <div><p className="text-sm text-slate-500">{t(lang, 'totalSchools')}</p><p className="text-2xl font-bold text-slate-800">{schools.length}</p></div>
-        </Card>
-        <Card className="flex items-center gap-4 p-5">
-          <div className="p-3 bg-green-100 rounded-lg"><Users className="text-green-600" size={24} /></div>
-          <div><p className="text-sm text-slate-500">{t(lang, 'activeSchools')}</p><p className="text-2xl font-bold text-slate-800">{schools.filter(s => s.is_active).length}</p></div>
-        </Card>
-        <Card className="flex items-center gap-4 p-5">
-          <div className="p-3 bg-blue-100 rounded-lg"><CreditCard className="text-blue-600" size={24} /></div>
-          <div><p className="text-sm text-slate-500">{t(lang, 'premiumSchools')}</p><p className="text-2xl font-bold text-slate-800">{schools.filter(s => s.subscription_plan === 'Premium' || s.subscription_plan === 'Enterprise').length}</p></div>
-        </Card>
-        <Card className="flex items-center gap-4 p-5">
-          <div className="p-3 bg-amber-100 rounded-lg"><Calendar className="text-amber-600" size={24} /></div>
-          <div><p className="text-sm text-slate-500">{t(lang, 'freeSchools')}</p><p className="text-2xl font-bold text-slate-800">{schools.filter(s => s.subscription_plan === 'Free').length}</p></div>
-        </Card>
+      {/* Quick Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <SchoolMiniStat label="Total Schools" value={schools.length} icon={School} color="indigo" />
+        <SchoolMiniStat label="Active Subscriptions" value={schools.filter(s => s.is_active).length} icon={Activity} color="emerald" />
+        <SchoolMiniStat label="Free Instances" value={schools.filter(s => s.subscription_plan === 'Free').length} icon={Users} color="amber" />
       </div>
 
-      <Card>
-        <div className="p-4 border-b border-slate-100 flex items-center justify-between">
-          <div className="relative max-w-sm w-full">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-            <input type="text" placeholder={t(lang, 'searchSchools')} value={search} onChange={e => setSearch(e.target.value)} className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-mauve-500/20 focus:border-mauve-500" />
-          </div>
-          <span className="text-sm text-slate-400 ml-4">{filteredSchools.length}</span>
+      {/* Toolbar */}
+      <div className="flex flex-col md:flex-row items-center justify-between gap-4 bg-slate-900/50 p-2 rounded-2xl border border-slate-800 backdrop-blur-sm">
+        <div className="relative w-full md:w-96">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={16} />
+          <input
+            type="text"
+            placeholder="Search by school name or instance code..."
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            className="w-full pl-12 pr-4 py-3 bg-slate-800 border border-slate-700 rounded-xl text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/30"
+          />
         </div>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t(lang, 'schoolName')}</TableHead>
-              <TableHead>{t(lang, 'code')}</TableHead>
-              <TableHead>Admin</TableHead>
-              <TableHead>{t(lang, 'subscription')}</TableHead>
-              <TableHead>{t(lang, 'limits')}</TableHead>
-              <TableHead>{t(lang, 'status')}</TableHead>
-              <TableHead className="text-right">{t(lang, 'actions')}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {loading ? (
-              <TableRow><TableCell colSpan={7} className="text-center py-10 text-slate-500"><Loader className="animate-spin mx-auto mb-2" size={24} />{t(lang, 'loadingRequests')}</TableCell></TableRow>
-            ) : filteredSchools.length === 0 ? (
-              <TableRow><TableCell colSpan={7} className="text-center text-slate-400 py-10">{t(lang, 'noSchools')}</TableCell></TableRow>
-            ) : (
-              filteredSchools.map((school) => (
-                <TableRow key={school.id}>
-                  <TableCell className="font-medium text-slate-800 flex items-center gap-3">
-                    <div className="w-8 h-8 bg-mauve-100 rounded-full flex items-center justify-center"><School size={16} className="text-mauve-600" /></div>
-                    {school.name}
-                  </TableCell>
-                  <TableCell className="text-slate-500 font-mono text-sm">{school.code}</TableCell>
-                  <TableCell>
-                    {schoolAdmins[school.id] ? (
-                      <div>
-                        <p className="text-sm text-slate-700">{schoolAdmins[school.id].name}</p>
-                        <p className="text-[10px] text-slate-400 font-mono">{schoolAdmins[school.id].email}</p>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-slate-400 italic">No admin</span>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <span className={`px-2.5 py-1 rounded-md text-xs font-medium ${planColors[school.subscription_plan] || 'bg-slate-100 text-slate-700'}`}>
-                      {school.subscription_plan}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-slate-500 text-sm">{school.max_students} students / {school.max_teachers} teachers</TableCell>
-                  <TableCell>
-                    <span className={`px-2.5 py-1 rounded-md text-xs font-medium ${school.is_active ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                      {school.is_active ? t(lang, 'active') : t(lang, 'inactive')}
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    <ActionMenu school={school} onDelete={(id) => setDeleteConfirm(id)} onEdit={handleEdit} />
-                  </TableCell>
-                </TableRow>
-              ))
-            )}
-          </TableBody>
-        </Table>
-      </Card>
-
-      <Modal isOpen={!!deleteConfirm} onClose={() => setDeleteConfirm(null)} title={t(lang, 'confirmDelete')}>
-        <div className="space-y-4">
-          <p className="text-slate-600">{t(lang, 'confirmDeleteSchool')}</p>
-          <div className="flex gap-3 pt-2">
-            <Button type="button" onClick={() => setDeleteConfirm(null)} className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200">{t(lang, 'cancel')}</Button>
-            <Button type="button" onClick={() => handleDelete(deleteConfirm)} className="flex-1 bg-red-600 hover:bg-red-700 text-white"><Trash2 size={16} className="mr-2" />{t(lang, 'delete')}</Button>
-          </div>
+        <div className="flex gap-2 w-full md:w-auto p-1">
+          <button className="flex items-center gap-2 px-4 py-2 text-xs font-black text-slate-500 uppercase tracking-wider hover:text-slate-300">
+            <Filter size={14} /> Filter By Plan
+          </button>
         </div>
-      </Modal>
+      </div>
 
-      <Modal isOpen={isModalOpen} onClose={() => { setIsModalOpen(false); setEditingSchool(null); }} title={editingSchool ? t(lang, 'editSchool') : t(lang, 'addNewSchool')}>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (<div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">{error}</div>)}
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">{t(lang, 'schoolName')}</label>
-            <input type="text" required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20 focus:border-mauve-500" placeholder="School name" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">{t(lang, 'code')}</label>
-            <input type="text" required value={formData.code} onChange={(e) => setFormData({ ...formData, code: e.target.value })} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20 focus:border-mauve-500" placeholder="SCH001" disabled={!!editingSchool} />
-          </div>
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t(lang, 'phone')}</label>
-              <input type="text" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20 focus:border-mauve-500" placeholder="+212..." />
+      {/* Schools List Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <AnimatePresence>
+          {loading ? (
+            <div className="col-span-full py-24 text-center">
+              <Loader className="animate-spin text-indigo-500 mx-auto" size={32} />
+              <p className="text-sm text-slate-600 mt-4 font-bold uppercase tracking-widest">Querying Cloud Instances...</p>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t(lang, 'email')}</label>
-              <input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20 focus:border-mauve-500" placeholder="school@example.com" />
+          ) : filteredSchools.length === 0 ? (
+            <div className="col-span-full py-24 text-center bg-slate-900/30 rounded-3xl border-2 border-dashed border-slate-800">
+              <School className="mx-auto mb-4 opacity-10" size={48} />
+              <p className="text-slate-500">No school entities found matching your criteria.</p>
             </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-slate-700 mb-1">{t(lang, 'address')}</label>
-            <input type="text" value={formData.address} onChange={(e) => setFormData({ ...formData, address: e.target.value })} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20 focus:border-mauve-500" placeholder="City, Morocco" />
-          </div>
-          <div className="grid grid-cols-3 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t(lang, 'subscription')}</label>
-              <select value={formData.subscription_plan} onChange={(e) => setFormData({ ...formData, subscription_plan: e.target.value })} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20 focus:border-mauve-500">
-                <option value="Free">Free</option>
-                <option value="Basic">Basic</option>
-                <option value="Premium">Premium</option>
-                <option value="Enterprise">Enterprise</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t(lang, 'maxStudents')}</label>
-              <input type="number" value={formData.max_students} onChange={(e) => setFormData({ ...formData, max_students: parseInt(e.target.value) })} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20 focus:border-mauve-500" />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-slate-700 mb-1">{t(lang, 'maxTeachers')}</label>
-              <input type="number" value={formData.max_teachers} onChange={(e) => setFormData({ ...formData, max_teachers: parseInt(e.target.value) })} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20 focus:border-mauve-500" />
-            </div>
-          </div>
-          {!editingSchool && (
-            <>
-              <div className="border-t border-slate-100 my-2" />
-              <h3 className="text-sm font-semibold text-slate-700 mt-2">{t(lang, 'schoolSuperAdmin')}</h3>
-              <p className="text-xs text-slate-500 mb-3">{t(lang, 'schoolSuperAdminDesc')}</p>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">{t(lang, 'fullName')}</label>
-                  <input type="text" value={formData.super_admin_name} onChange={(e) => setFormData({ ...formData, super_admin_name: e.target.value })} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20 focus:border-mauve-500" placeholder="Admin name" />
+          ) : filteredSchools.map((school, i) => (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: i * 0.05 }}
+              key={school.id}
+              className="group bg-slate-900/50 border border-slate-800 rounded-3xl p-6 hover:border-indigo-500/30 transition-all backdrop-blur-md flex flex-col h-full"
+            >
+              <div className="flex items-start justify-between mb-6">
+                <div className="w-12 h-12 bg-indigo-500/10 rounded-2xl flex items-center justify-center border border-indigo-500/20 group-hover:bg-indigo-600 group-hover:text-white transition-all">
+                  <School size={24} />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-1">{t(lang, 'email')}</label>
-                  <input type="email" value={formData.super_admin_email} onChange={(e) => setFormData({ ...formData, super_admin_email: e.target.value })} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20 focus:border-mauve-500" placeholder="admin@school.com" />
+                <div className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                  school.subscription_plan === 'Free' ? 'bg-slate-800 text-slate-500 border border-slate-700' :
+                  school.subscription_plan === 'Enterprise' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' :
+                  'bg-indigo-500/10 text-indigo-400 border border-indigo-500/20'
+                }`}>
+                  {school.subscription_plan}
                 </div>
               </div>
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">{t(lang, 'password')}</label>
-                <input type="password" value={formData.super_admin_password} onChange={(e) => setFormData({ ...formData, super_admin_password: e.target.value })} className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20 focus:border-mauve-500" placeholder="Create a password" />
-              </div>
-            </>
-          )}
-          <div className="flex gap-3 pt-4">
-            <Button type="button" onClick={() => { setIsModalOpen(false); setEditingSchool(null); }} className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200">{t(lang, 'cancel')}</Button>
-            <Button type="submit" className="flex-1">{editingSchool ? t(lang, 'save') : t(lang, 'addSchool')}</Button>
-          </div>
-        </form>
-      </Modal>
 
-      <Modal isOpen={!!createdAdmin} onClose={() => setCreatedAdmin(null)} title="✅ School Created — Admin Credentials">
-        {createdAdmin && (
-          <div className="space-y-4">
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-              <p className="text-sm font-medium text-green-800 mb-1">School: {createdAdmin.school} ({createdAdmin.code})</p>
-              <p className="text-xs text-green-600">Super Admin account has been created successfully</p>
+              <div className="flex-1 space-y-4">
+                <div>
+                  <h3 className="text-lg font-black text-white group-hover:text-indigo-400 transition-colors">{school.name}</h3>
+                  <p className="text-[10px] font-mono text-slate-600 uppercase tracking-widest mt-0.5">Instance ID: {school.code}</p>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <MapPin size={12} /> {school.address || 'Global Headquarter'}
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <Mail size={12} /> {school.email || 'system@tenant.com'}
+                  </div>
+                  <div className="flex items-center gap-2 text-xs text-slate-500">
+                    <Users size={12} /> {school.max_students} Students capacity
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-8 pt-6 border-t border-slate-800 flex items-center justify-between">
+                <div className="flex items-center gap-1">
+                  <button className="p-2 text-slate-500 hover:text-white hover:bg-slate-800 rounded-lg transition-all" onClick={() => navigate(`/school?tenant=${school.code}`)}><ExternalLink size={16} /></button>
+                  <button className="p-2 text-slate-500 hover:text-indigo-400 hover:bg-slate-800 rounded-lg transition-all" onClick={() => { setEditingSchool(school); setFormData(school); setIsModalOpen(true); }}><Edit2 size={16} /></button>
+                  <button className="p-2 text-slate-500 hover:text-red-400 hover:bg-slate-800 rounded-lg transition-all" onClick={() => handleDelete(school.id, school.name)}><Trash2 size={16} /></button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${school.is_active ? 'bg-emerald-500 animate-pulse' : 'bg-red-500'}`} />
+                  <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                    {school.is_active ? 'Online' : 'Suspended'}
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </div>
+
+      {/* Creation Modal */}
+      {isModalOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm" onClick={() => setIsModalOpen(false)} />
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+            className="relative w-full max-w-2xl bg-slate-900 border border-slate-800 rounded-[2rem] overflow-hidden shadow-2xl"
+          >
+            <div className="p-8 border-b border-slate-800 bg-slate-800/50">
+              <h2 className="text-xl font-black text-white tracking-tight">{editingSchool ? 'Modify Instance' : 'Provision New Tenant'}</h2>
+              <p className="text-xs text-slate-500 font-medium mt-1">Configure infrastructure parameters and root administrator</p>
             </div>
 
-            <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
-              <p className="text-xs font-semibold text-amber-800 mb-3">🔑 Login Credentials (Save these!)</p>
+            <form onSubmit={handleSubmit} className="p-8 space-y-6 max-h-[70vh] overflow-y-auto">
+              {error && <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-xs font-bold">{error}</div>}
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">School Name</label>
+                  <input required value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:ring-2 focus:ring-indigo-500/30 outline-none" placeholder="e.g. Atlas International Academy" />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Instance Code (Unique)</label>
+                  <input required value={formData.code} onChange={e => setFormData({...formData, code: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:ring-2 focus:ring-indigo-500/30 outline-none" placeholder="e.g. ATLAS-2024" />
+                </div>
+              </div>
+
               <div className="space-y-2">
-                <div className="flex items-center justify-between bg-white rounded-lg p-3 border border-amber-100">
-                  <div>
-                    <p className="text-[10px] text-slate-400 uppercase">Name</p>
-                    <p className="text-sm font-medium text-slate-800">{createdAdmin.name}</p>
-                  </div>
-                  <button onClick={() => { navigator.clipboard.writeText(createdAdmin.name); }} className="text-xs text-amber-600 hover:text-amber-700 font-medium">Copy</button>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Headquarter Address</label>
+                <input value={formData.address} onChange={e => setFormData({...formData, address: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white focus:ring-2 focus:ring-indigo-500/30 outline-none" placeholder="Street, City, Country" />
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Subscription Plan</label>
+                  <select value={formData.subscription_plan} onChange={e => setFormData({...formData, subscription_plan: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white outline-none">
+                    <option>Free</option>
+                    <option>Standard</option>
+                    <option>Premium</option>
+                    <option>Enterprise</option>
+                  </select>
                 </div>
-                <div className="flex items-center justify-between bg-white rounded-lg p-3 border border-amber-100">
-                  <div>
-                    <p className="text-[10px] text-slate-400 uppercase">Email</p>
-                    <p className="text-sm font-mono text-slate-800">{createdAdmin.email}</p>
-                  </div>
-                  <button onClick={() => { navigator.clipboard.writeText(createdAdmin.email); }} className="text-xs text-amber-600 hover:text-amber-700 font-medium">Copy</button>
-                </div>
-                <div className="flex items-center justify-between bg-white rounded-lg p-3 border border-amber-100">
-                  <div>
-                    <p className="text-[10px] text-slate-400 uppercase">Password</p>
-                    <p className="text-sm font-mono text-slate-800">{createdAdmin.password}</p>
-                  </div>
-                  <button onClick={() => { navigator.clipboard.writeText(createdAdmin.password); }} className="text-xs text-amber-600 hover:text-amber-700 font-medium">Copy</button>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Student Capacity</label>
+                  <input type="number" value={formData.max_students} onChange={e => setFormData({...formData, max_students: parseInt(e.target.value)})} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white outline-none" />
                 </div>
               </div>
-            </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3">
-              <p className="text-xs text-blue-700">
-                <strong>Login URL:</strong> <code className="bg-blue-100 px-1 rounded">{window.location.origin}/auth/login</code>
-              </p>
-            </div>
+              {!editingSchool && (
+                <div className="pt-6 border-t border-slate-800 space-y-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <Shield size={16} className="text-indigo-400" />
+                    <h3 className="text-xs font-black text-white uppercase tracking-widest">Root Administrator Setup</h3>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Full Name</label>
+                      <input required value={formData.super_admin_name} onChange={e => setFormData({...formData, super_admin_name: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white outline-none" />
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Email Address</label>
+                      <input required type="email" value={formData.super_admin_email} onChange={e => setFormData({...formData, super_admin_email: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white outline-none" />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Initial Password</label>
+                    <input required type="password" value={formData.super_admin_password} onChange={e => setFormData({...formData, super_admin_password: e.target.value})} className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-sm text-white outline-none" />
+                  </div>
+                </div>
+              )}
 
-            <div className="flex gap-3 pt-2">
-              <Button onClick={() => setCreatedAdmin(null)} className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200">Close</Button>
-            </div>
-          </div>
-        )}
-      </Modal>
+              <div className="pt-8 flex gap-4">
+                <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 bg-slate-800 text-slate-400 text-xs font-black uppercase tracking-widest rounded-xl hover:bg-slate-700 transition-all">Cancel</button>
+                <button type="submit" className="flex-1 py-3 bg-indigo-600 text-white text-xs font-black uppercase tracking-widest rounded-xl hover:bg-indigo-500 transition-all shadow-lg shadow-indigo-600/20">
+                  {editingSchool ? 'Update Instance' : 'Deploy Tenant'}
+                </button>
+              </div>
+            </form>
+          </motion.div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SchoolMiniStat({ label, value, icon: Icon, color }) {
+  const colors = {
+    indigo: 'from-indigo-500/20 to-indigo-500/5 text-indigo-400 border-indigo-500/20',
+    emerald: 'from-emerald-500/20 to-emerald-500/5 text-emerald-400 border-emerald-500/20',
+    amber: 'from-amber-500/20 to-amber-500/5 text-amber-400 border-amber-500/20',
+  };
+  return (
+    <div className={`bg-gradient-to-br ${colors[color]} border rounded-3xl p-6 backdrop-blur-sm`}>
+      <Icon className="mb-4 opacity-50" size={20} />
+      <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">{label}</p>
+      <h4 className="text-2xl font-black text-white tracking-tight">{value}</h4>
     </div>
   );
 }

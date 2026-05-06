@@ -4,6 +4,7 @@ from sqlalchemy import func
 from database import get_db
 from models import NoteDB, NoteCreate, NoteResponse, StudentDB, SubjectDB
 from routes.auth import get_current_user
+from security_utils import enforce_school_scope
 
 router = APIRouter(prefix="/grades", tags=["grades"])
 
@@ -18,8 +19,7 @@ def get_notes(
     current_user=Depends(get_current_user)
 ):
     query = db.query(NoteDB).filter(NoteDB.academic_year == academic_year)
-    if current_user.role != "Super Admin":
-        query = query.filter(NoteDB.school_id == current_user.school_id)
+    query = enforce_school_scope(query, NoteDB, current_user)
     if student_id:
         query = query.filter(NoteDB.student_id == student_id)
     if class_name:
@@ -45,7 +45,7 @@ def update_note(note_id: int, note: NoteCreate, db: Session = Depends(get_db), c
     if current_user.role not in ["Admin", "Super Admin", "Teacher"]:
         raise HTTPException(status_code=403, detail="Only teachers and admins can update notes")
     query = db.query(NoteDB).filter(NoteDB.id == note_id)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(NoteDB.school_id == current_user.school_id)
     db_note = query.first()
     if not db_note:
@@ -61,7 +61,7 @@ def delete_note(note_id: int, db: Session = Depends(get_db), current_user=Depend
     if current_user.role not in ["Admin", "Super Admin"]:
         raise HTTPException(status_code=403, detail="Only admins can delete notes")
     query = db.query(NoteDB).filter(NoteDB.id == note_id)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(NoteDB.school_id == current_user.school_id)
     db_note = query.first()
     if not db_note:
@@ -80,8 +80,7 @@ def get_averages(
     current_user=Depends(get_current_user)
 ):
     query = db.query(NoteDB).filter(NoteDB.academic_year == academic_year)
-    if current_user.role != "Super Admin":
-        query = query.filter(NoteDB.school_id == current_user.school_id)
+    query = enforce_school_scope(query, NoteDB, current_user)
     if class_name:
         query = query.filter(NoteDB.student_class == class_name)
     if subject_id:
@@ -126,8 +125,7 @@ def get_student_grades(
     current_user=Depends(get_current_user)
 ):
     query = db.query(NoteDB).filter(NoteDB.student_id == student_id, NoteDB.academic_year == academic_year)
-    if current_user.role != "Super Admin":
-        query = query.filter(NoteDB.school_id == current_user.school_id)
+    query = enforce_school_scope(query, NoteDB, current_user)
     if semester:
         query = query.filter(NoteDB.semester == semester)
     notes = query.all()

@@ -31,6 +31,10 @@ import { AITutor } from './pages/AITutor';
 import { Expenses } from './pages/Expenses';
 import { TeacherSalaries } from './pages/TeacherSalaries';
 import { SecurityLogs } from './pages/SecurityLogs';
+import { SecurityCenter } from './pages/SecurityCenter';
+import { BackupsManager } from './pages/BackupsManager';
+import { BillingAnalytics } from './pages/BillingAnalytics';
+import { IntegrationsHub } from './pages/IntegrationsHub';
 import { VideoRooms } from './pages/VideoRooms';
 import { Schools } from './pages/Schools';
 import { DevDB } from './pages/DevDB';
@@ -44,11 +48,14 @@ function App() {
           <Route path="/register" element={<Register />} />
           <Route path="*" element={<SmartRedirect />} />
 
-          {/* Platform Owner Routes */}
+          {/* Platform Owner Routes - Manages SCHOOLS ONLY */}
           <Route path="/" element={<OwnerDashboardLayout />}>
             <Route index element={<OwnerDashboard />} />
             <Route path="schools" element={<Schools />} />
-            <Route path="billing" element={<Placeholder title="Billing" />} />
+            <Route path="security-center" element={<SecurityCenter />} />
+            <Route path="backups" element={<BackupsManager />} />
+            <Route path="billing" element={<BillingAnalytics />} />
+            <Route path="integrations" element={<IntegrationsHub />} />
             <Route path="security" element={<SecurityLogs />} />
             <Route path="settings" element={<Settings />} />
             <Route path="dev-db" element={<DevDB />} />

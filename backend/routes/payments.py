@@ -12,7 +12,7 @@ router = APIRouter(prefix="/payments", tags=["payments"])
 @router.get("/")
 def get_payments(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     query = db.query(PaymentDB)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(PaymentDB.school_id == current_user.school_id)
     if current_user.role == "Parent":
         query = query.filter(PaymentDB.parent_id == current_user.id)
@@ -73,7 +73,7 @@ def update_payment(
     current_user=Depends(require_admin_or_super)
 ):
     query = db.query(PaymentDB).filter(PaymentDB.id == payment_id)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(PaymentDB.school_id == current_user.school_id)
     payment = query.first()
     if not payment:
@@ -105,7 +105,7 @@ def delete_payment(
     current_user=Depends(require_admin_or_super)
 ):
     query = db.query(PaymentDB).filter(PaymentDB.id == payment_id)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(PaymentDB.school_id == current_user.school_id)
     payment = query.first()
     if not payment:
@@ -117,7 +117,7 @@ def delete_payment(
 @router.get("/stats")
 def get_stats(db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     query = db.query(PaymentDB)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(PaymentDB.school_id == current_user.school_id)
     if current_user.role == "Parent":
         query = query.filter(PaymentDB.parent_id == current_user.id)
@@ -246,7 +246,7 @@ def download_receipt(
     current_user=Depends(get_current_user)
 ):
     query = db.query(PaymentDB).filter(PaymentDB.id == payment_id)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(PaymentDB.school_id == current_user.school_id)
     payment = query.first()
     if not payment:

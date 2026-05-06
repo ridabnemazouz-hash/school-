@@ -11,7 +11,7 @@ DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"]
 @router.get("/")
 def get_schedule(class_id: int = None, teacher_id: int = None, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     query = db.query(ScheduleEntryDB)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(ScheduleEntryDB.school_id == current_user.school_id)
     if class_id:
         query = query.filter(ScheduleEntryDB.class_id == class_id)
@@ -55,7 +55,7 @@ def delete_schedule_entry(entry_id: int, db: Session = Depends(get_db), current_
     if current_user.role not in ["Admin", "Super Admin"]:
         raise HTTPException(status_code=403, detail="Only admins can delete schedule entries")
     query = db.query(ScheduleEntryDB).filter(ScheduleEntryDB.id == entry_id)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(ScheduleEntryDB.school_id == current_user.school_id)
     db_entry = query.first()
     if not db_entry:

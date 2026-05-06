@@ -32,7 +32,7 @@ def require_teacher_or_admin(current_user=Depends(get_current_user)):
 @router.get("/")
 def get_content(subject: str = None, db: Session = Depends(get_db), current_user=Depends(get_current_user)):
     query = db.query(ContentDB)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(ContentDB.school_id == current_user.school_id)
     if subject and subject != "All":
         query = query.filter(ContentDB.subject == subject)
@@ -131,7 +131,7 @@ def delete_content(
     current_user=Depends(require_teacher_or_admin)
 ):
     query = db.query(ContentDB).filter(ContentDB.id == content_id)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(ContentDB.school_id == current_user.school_id)
     content = query.first()
     if not content:

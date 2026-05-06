@@ -3,7 +3,8 @@ import { NavLink } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { cn } from '../../utils';
 import {
-  LayoutDashboard, School, CreditCard, Shield, Settings, LogOut, Crown, X, Code
+  LayoutDashboard, School, CreditCard, Shield, Settings, LogOut, Crown, X, Code,
+  HardDrive, Plug, FileText
 } from 'lucide-react';
 
 export function OwnerSidebar({ mobileOpen = false, onClose }) {
@@ -12,8 +13,11 @@ export function OwnerSidebar({ mobileOpen = false, onClose }) {
   const navItems = [
     { name: 'Dashboard', path: '/', icon: LayoutDashboard },
     { name: 'Schools', path: '/schools', icon: School },
+    { name: 'Security', path: '/security-center', icon: Shield },
+    { name: 'Backups', path: '/backups', icon: HardDrive },
     { name: 'Billing', path: '/billing', icon: CreditCard },
-    { name: 'Logs', path: '/security', icon: Shield },
+    { name: 'Integrations', path: '/integrations', icon: Plug },
+    { name: 'Logs', path: '/security', icon: FileText },
     { name: 'Dev Console', path: '/dev-db', icon: Code },
     { name: 'Settings', path: '/settings', icon: Settings },
   ];

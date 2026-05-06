@@ -16,7 +16,7 @@ export function SmartRedirect() {
 
   if (!user) return <Navigate to="/login" replace />;
 
-  const isPlatformOwner = user.role === 'Super Admin' && !user.school_id;
+  const isPlatformOwner = user.role === 'Owner' || (user.role === 'Super Admin' && !user.school_id);
   if (isPlatformOwner) return <Navigate to="/" replace />;
 
   return <Navigate to="/school" replace />;

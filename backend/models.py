@@ -22,6 +22,45 @@ class SchoolDB(Base):
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
+class SubscriptionDB(Base):
+    __tablename__ = "subscriptions"
+    id = Column(Integer, primary_key=True, index=True)
+    school_id = Column(Integer, index=True)
+    plan = Column(String, default="Free")  # Free, Basic, Premium, Enterprise
+    status = Column(String, default="Active")  # Active, Expired, Cancelled, PastDue
+    started_at = Column(DateTime, default=datetime.datetime.utcnow)
+    expires_at = Column(DateTime, nullable=True)
+    amount_paid = Column(Integer, default=0)  # in cents
+    billing_cycle = Column(String, default="monthly")  # monthly, yearly
+    auto_renew = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+# Subscription Schemas
+class SubscriptionCreate(BaseModel):
+    plan: str = "Free"
+    billing_cycle: str = "monthly"
+    amount_paid: int = 0
+
+class SubscriptionUpdate(BaseModel):
+    plan: Optional[str] = None
+    status: Optional[str] = None
+    expires_at: Optional[datetime.datetime] = None
+    auto_renew: Optional[bool] = None
+
+class SubscriptionResponse(BaseModel):
+    id: int
+    school_id: int
+    plan: str
+    status: str
+    started_at: Optional[datetime.datetime] = None
+    expires_at: Optional[datetime.datetime] = None
+    amount_paid: int
+    billing_cycle: str
+    auto_renew: bool
+    created_at: Optional[datetime.datetime] = None
+    class Config:
+        from_attributes = True
+
 class UserDB(Base):
     __tablename__ = "users"
     id = Column(Integer, primary_key=True, index=True)
@@ -32,6 +71,7 @@ class UserDB(Base):
     hashed_password = Column(String)
     refresh_token = Column(String, nullable=True)
     status = Column(String, default="Pending")
+    is_platform_owner = Column(Boolean, default=False)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
 class SecurityLogDB(Base):
@@ -262,6 +302,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     role: str
+    school_id: Optional[int] = None
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -623,7 +664,11 @@ class ActivityEvent(Base):
     entity_id = Column(Integer, nullable=True)
     school_id = Column(Integer, nullable=True)
     user_email = Column(String, nullable=True)
+    ip_address = Column(String, nullable=True)
+    user_agent = Column(String, nullable=True)
     details = Column(Text, nullable=True)
+    before_data = Column(Text, nullable=True)  # JSON snapshot before change
+    after_data = Column(Text, nullable=True)   # JSON snapshot after change
     created_at = Column(DateTime, default=datetime.datetime.utcnow, index=True)
 
 class BillingMetric(Base):

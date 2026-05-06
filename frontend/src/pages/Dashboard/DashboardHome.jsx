@@ -16,7 +16,7 @@ import {
   Tooltip, 
   ResponsiveContainer 
 } from 'recharts';
-import API from '../../config';
+import { apiFetch } from '../../config';
 
 const attendanceData = [
   { name: 'Mon', value: 92 },
@@ -27,7 +27,7 @@ const attendanceData = [
 ];
 
 export function DashboardHome() {
-  const { user } = useAuth();
+  const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [stats, setStats] = useState({
     totalStudents: 0,
@@ -38,12 +38,14 @@ export function DashboardHome() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchStats();
-  }, []);
+    if (user) {
+      fetchStats();
+    }
+  }, [user]);
 
   const fetchStats = async () => {
     try {
-      const res = await fetch(`${API}/students/stats`);
+      const res = await apiFetch('/students/stats');
       if (res.ok) {
         const data = await res.json();
         setStats(data);
@@ -54,6 +56,14 @@ export function DashboardHome() {
       setLoading(false);
     }
   };
+
+  if (authLoading || !user) {
+    return (
+      <div className="h-full flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+      </div>
+    );
+  }
 
   const isAdmin = user.role === 'Admin' || user.role === 'Super Admin';
   const isTeacher = user.role === 'Teacher';
@@ -150,26 +160,26 @@ export function DashboardHome() {
             <div className="p-4 grid grid-cols-2 gap-3">
               {isAdmin && (
                 <>
-                  <QuickAction icon={PlusIcon} label="Add Student" color="bg-indigo-50 text-indigo-600" onClick={() => navigate('/students')} />
-                  <QuickAction icon={GraduationCap} label="Add Teacher" color="bg-rose-50 text-rose-600" onClick={() => navigate('/teachers')} />
-                  <QuickAction icon={BookOpen} label="New Class" color="bg-amber-50 text-amber-600" onClick={() => navigate('/classes')} />
-                  <QuickAction icon={CreditCard} label="Payments" color="bg-emerald-50 text-emerald-600" onClick={() => navigate('/payments')} />
+                  <QuickAction icon={PlusIcon} label="Add Student" color="bg-indigo-50 text-indigo-600" onClick={() => navigate('/school/students')} />
+                  <QuickAction icon={GraduationCap} label="Add Teacher" color="bg-rose-50 text-rose-600" onClick={() => navigate('/school/teachers')} />
+                  <QuickAction icon={BookOpen} label="New Class" color="bg-amber-50 text-amber-600" onClick={() => navigate('/school/classes')} />
+                  <QuickAction icon={CreditCard} label="Payments" color="bg-emerald-50 text-emerald-600" onClick={() => navigate('/school/payments')} />
                 </>
               )}
               {isTeacher && (
                 <>
-                  <QuickAction icon={PlusIcon} label="Add Grade" color="bg-indigo-50 text-indigo-600" onClick={() => navigate('/grades')} />
-                  <QuickAction icon={BookOpen} label="My Classes" color="bg-rose-50 text-rose-600" onClick={() => navigate('/my-classes')} />
-                  <QuickAction icon={FileDown} label="Upload Content" color="bg-amber-50 text-amber-600" onClick={() => navigate('/content')} />
-                  <QuickAction icon={MessageSquare} label="Open Chat" color="bg-emerald-50 text-emerald-600" onClick={() => navigate('/chat')} />
+                  <QuickAction icon={PlusIcon} label="Add Grade" color="bg-indigo-50 text-indigo-600" onClick={() => navigate('/school/grades')} />
+                  <QuickAction icon={BookOpen} label="My Classes" color="bg-rose-50 text-rose-600" onClick={() => navigate('/school/my-classes')} />
+                  <QuickAction icon={FileDown} label="Upload Content" color="bg-amber-50 text-amber-600" onClick={() => navigate('/school/content')} />
+                  <QuickAction icon={MessageSquare} label="Open Chat" color="bg-emerald-50 text-emerald-600" onClick={() => navigate('/school/chat')} />
                 </>
               )}
               {!isAdmin && !isTeacher && (
                 <>
-                  <QuickAction icon={Calendar} label="Planning" color="bg-indigo-50 text-indigo-600" onClick={() => navigate('/planning')} />
-                  <QuickAction icon={FileText} label="My Grades" color="bg-rose-50 text-rose-600" onClick={() => navigate('/grades')} />
-                  <QuickAction icon={MessageSquare} label="Chat Support" color="bg-amber-50 text-amber-600" onClick={() => navigate('/chat')} />
-                  <QuickAction icon={Settings} label="Settings" color="bg-emerald-50 text-emerald-600" onClick={() => navigate('/settings')} />
+                  <QuickAction icon={Calendar} label="Planning" color="bg-indigo-50 text-indigo-600" onClick={() => navigate('/school/planning')} />
+                  <QuickAction icon={FileText} label="My Grades" color="bg-rose-50 text-rose-600" onClick={() => navigate('/school/grades')} />
+                  <QuickAction icon={MessageSquare} label="Chat Support" color="bg-amber-50 text-amber-600" onClick={() => navigate('/school/chat')} />
+                  <QuickAction icon={Settings} label="Settings" color="bg-emerald-50 text-emerald-600" onClick={() => navigate('/school/settings')} />
                 </>
               )}
             </div>
@@ -197,7 +207,7 @@ export function DashboardHome() {
                   ))}
                 </div>
                 <div className="p-4 bg-slate-50/50">
-                  <button className="w-full py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-500 hover:border-indigo-200 hover:text-indigo-600 transition-all shadow-sm" onClick={() => navigate('/accounts')}>
+                  <button className="w-full py-2 bg-white border border-slate-200 rounded-xl text-xs font-bold text-slate-500 hover:border-indigo-200 hover:text-indigo-600 transition-all shadow-sm" onClick={() => navigate('/school/accounts')}>
                     View All Requests
                   </button>
                 </div>

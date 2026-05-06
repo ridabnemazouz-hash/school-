@@ -92,7 +92,7 @@ export function AuthProvider({ children }) {
         userObj.avatar = savedAvatar;
       }
       setUser(userObj);
-      return { success: true };
+      return { success: true, user: userObj };
     } catch (error) {
       return { success: false, message: error.message };
     }

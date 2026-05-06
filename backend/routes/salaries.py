@@ -33,7 +33,7 @@ def validate_filename(filename: str) -> str:
 @router.get("/")
 def get_salaries(month: str = None, status: str = None, db: Session = Depends(get_db), current_user=Depends(require_admin_or_super)):
     query = db.query(SalaryDB)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(SalaryDB.school_id == current_user.school_id)
     if month and month != "All":
         query = query.filter(SalaryDB.month == month)
@@ -123,7 +123,7 @@ async def update_salary(
     current_user=Depends(require_admin_or_super)
 ):
     query = db.query(SalaryDB).filter(SalaryDB.id == salary_id)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(SalaryDB.school_id == current_user.school_id)
     salary = query.first()
     if not salary:
@@ -179,7 +179,7 @@ def delete_salary(
     current_user=Depends(require_admin_or_super)
 ):
     query = db.query(SalaryDB).filter(SalaryDB.id == salary_id)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(SalaryDB.school_id == current_user.school_id)
     salary = query.first()
     if not salary:
@@ -195,7 +195,7 @@ def delete_salary(
 @router.get("/stats")
 def get_stats(db: Session = Depends(get_db), current_user=Depends(require_admin_or_super)):
     query = db.query(SalaryDB)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(SalaryDB.school_id == current_user.school_id)
     salaries = query.all()
     total = sum(s.amount for s in salaries)
@@ -219,7 +219,7 @@ def generate_receipt(
     current_user=Depends(require_admin_or_super)
 ):
     query = db.query(SalaryDB).filter(SalaryDB.id == salary_id)
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(SalaryDB.school_id == current_user.school_id)
     salary = query.first()
     if not salary:

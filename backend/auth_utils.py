@@ -11,7 +11,7 @@ load_dotenv()
 SECRET_KEY = os.environ.get("SECRET_KEY", "fallback_secret_change_me")
 REFRESH_SECRET_KEY = os.environ.get("REFRESH_SECRET_KEY", "fallback_refresh_secret_change_me")
 ALGORITHM = "HS256"
-ACCESS_TOKEN_EXPIRE_MINUTES = 15
+ACCESS_TOKEN_EXPIRE_MINUTES = 60
 REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 IS_PRODUCTION = os.environ.get("PRODUCTION") == "true"
@@ -48,12 +48,14 @@ def decode_token(token: str, secret: str = None):
 
 def set_token_cookies(response: Response, access_token: str, refresh_token: str):
     secure = IS_PRODUCTION
+    # SameSite=Strict is recommended for maximum security against CSRF
+    samesite = "strict" if secure else "lax"
     response.set_cookie(
         key="access_token",
         value=access_token,
         httponly=True,
         secure=secure,
-        samesite="lax",
+        samesite=samesite,
         max_age=ACCESS_TOKEN_EXPIRE_MINUTES * 60,
         path="/",
     )
@@ -62,7 +64,7 @@ def set_token_cookies(response: Response, access_token: str, refresh_token: str)
         value=refresh_token,
         httponly=True,
         secure=secure,
-        samesite="lax",
+        samesite=samesite,
         max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,
         path="/",
     )
@@ -91,7 +93,37 @@ def require_admin_or_super(current_user):
     return current_user
 
 def require_super_admin(current_user):
-    if current_user.role != "Super Admin":
+    if current_user.role not in ["Super Admin", "Owner"]:
         from fastapi import HTTPException
         raise HTTPException(status_code=403, detail="Only Super Admin can perform this action")
     return current_user
+
+def enforce_school_scope(query, model, user):
+    """Enforce that school-level users can only access their school's data"""
+    if not user.is_platform_owner and user.school_id is not None:
+        return query.filter(model.school_id == user.school_id)
+    return query
+
+def verify_object_ownership(obj, user):
+    """Double protection: Verify that a fetched object belongs to the user's school"""
+    if user.is_platform_owner:
+        return # Platform Owner can see everything
+    
+    if not hasattr(obj, "school_id"):
+        return # Object doesn't have school_id, skip check
+        
+    if obj.school_id != user.school_id:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=403, detail="Security Violation: Access Denied to this resource")
+
+def check_subscription_active(db, school_id: int):
+    """Check if school has active subscription"""
+    from models import SubscriptionDB
+    subscription = db.query(SubscriptionDB).filter(SubscriptionDB.school_id == school_id).first()
+    if not subscription:
+        return True
+    if subscription.status != "Active":
+        return False
+    if subscription.expires_at and subscription.expires_at < datetime.utcnow():
+        return False
+    return True

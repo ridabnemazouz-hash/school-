@@ -44,37 +44,41 @@ export function Sidebar({ mobileOpen = false, onClose }) {
     };
 
     const items = [
-      { name: t(lang, navKeys.dashboard), path: '/', icon: LayoutDashboard, roles: ['Super Admin', 'Admin', 'Teacher', 'Student', 'Parent'] },
+      { name: t(lang, navKeys.dashboard), path: '/school', icon: LayoutDashboard, roles: ['Super Admin', 'Admin', 'Teacher', 'Student', 'Parent'] },
       
-      { name: t(lang, navKeys.admins), path: '/school/admins', icon: Users, roles: ['Super Admin'], ownerOnly: true },
-      { name: t(lang, navKeys.accounts), path: '/school/accounts', icon: UserPlus, roles: ['Super Admin'], ownerOnly: true },
+      { name: t(lang, navKeys.admins), path: '/school/admins', icon: Users, roles: ['Super Admin'] },
+      { name: t(lang, navKeys.accounts), path: '/school/accounts', icon: UserPlus, roles: ['Super Admin', 'Admin'] },
       { name: t(lang, navKeys.schools), path: '/schools', icon: School, roles: ['Super Admin'], ownerOnly: true },
       { name: t(lang, navKeys.security), path: '/school/security', icon: Shield, roles: ['Super Admin'], ownerOnly: true },
       
-      { name: t(lang, navKeys.students), path: '/students', icon: Users, roles: ['Super Admin', 'Admin'] },
-      { name: t(lang, navKeys.teachers), path: '/teachers', icon: GraduationCap, roles: ['Super Admin', 'Admin'] },
-      { name: t(lang, navKeys.parents), path: '/parents', icon: Users, roles: ['Super Admin', 'Admin'] },
-      { name: t(lang, navKeys.classes), path: '/classes', icon: BookOpen, roles: ['Super Admin', 'Admin'] },
-      { name: t(lang, navKeys.subjects), path: '/subjects', icon: BookOpen, roles: ['Super Admin', 'Admin', 'Teacher'] },
-      { name: t(lang, navKeys.grades), path: '/grades', icon: FileText, roles: ['Super Admin', 'Admin', 'Teacher', 'Student', 'Parent'] },
-      { name: t(lang, navKeys.planning), path: '/planning', icon: Calendar, roles: ['Super Admin', 'Admin', 'Teacher', 'Student', 'Parent'] },
-      { name: t(lang, navKeys.transport), path: '/transport', icon: Bus, roles: ['Super Admin', 'Admin'] },
-      { name: t(lang, navKeys.expenses), path: '/expenses', icon: TrendingUp, roles: ['Super Admin', 'Admin'] },
-      { name: t(lang, navKeys.salaries), path: '/salaries', icon: Wallet, roles: ['Super Admin', 'Admin'] },
+      { name: t(lang, navKeys.students), path: '/school/students', icon: Users, roles: ['Super Admin', 'Admin'] },
+      { name: t(lang, navKeys.teachers), path: '/school/teachers', icon: GraduationCap, roles: ['Super Admin', 'Admin'] },
+      { name: t(lang, navKeys.parents), path: '/school/parents', icon: Users, roles: ['Super Admin', 'Admin'] },
+      { name: t(lang, navKeys.classes), path: '/school/classes', icon: BookOpen, roles: ['Super Admin', 'Admin'] },
+      { name: t(lang, navKeys.subjects), path: '/school/subjects', icon: BookOpen, roles: ['Super Admin', 'Admin', 'Teacher'] },
+      { name: t(lang, navKeys.grades), path: '/school/grades', icon: FileText, roles: ['Super Admin', 'Admin', 'Teacher', 'Student', 'Parent'] },
+      { name: t(lang, navKeys.planning), path: '/school/planning', icon: Calendar, roles: ['Super Admin', 'Admin', 'Teacher', 'Student', 'Parent'] },
+      { name: t(lang, navKeys.transport), path: '/school/transport', icon: Bus, roles: ['Super Admin', 'Admin'] },
+      { name: t(lang, navKeys.expenses), path: '/school/expenses', icon: TrendingUp, roles: ['Super Admin', 'Admin'] },
+      { name: t(lang, navKeys.salaries), path: '/school/salaries', icon: Wallet, roles: ['Super Admin', 'Admin'] },
 
-      { name: t(lang, navKeys.myClasses), path: '/my-classes', icon: BookOpen, roles: ['Teacher'] },
-      { name: t(lang, navKeys.myStudents), path: '/my-students', icon: Users, roles: ['Teacher'] },
+      { name: t(lang, navKeys.myClasses), path: '/school/my-classes', icon: BookOpen, roles: ['Teacher'] },
+      { name: t(lang, navKeys.myStudents), path: '/school/my-students', icon: Users, roles: ['Teacher'] },
       
-      { name: t(lang, navKeys.aiTutor), path: '/ai-tutor', icon: Sparkles, roles: ['Student', 'Teacher', 'Parent'] },
-      { name: t(lang, navKeys.payments), path: '/payments', icon: CreditCard, roles: ['Super Admin', 'Admin', 'Parent'] },
+      { name: t(lang, navKeys.aiTutor), path: '/school/ai-tutor', icon: Sparkles, roles: ['Student', 'Teacher', 'Parent'] },
+      { name: t(lang, navKeys.payments), path: '/school/payments', icon: CreditCard, roles: ['Super Admin', 'Admin', 'Parent'] },
 
-      { name: t(lang, navKeys.attendance), path: '/attendance', icon: CalendarCheck, roles: ['Teacher', 'Student', 'Parent'] },
-      { name: t(lang, navKeys.lessons), path: '/content', icon: FileDown, roles: ['Teacher', 'Student', 'Parent'] },
-      { name: t(lang, navKeys.chat), path: '/chat', icon: MessageSquare, roles: ['Super Admin', 'Admin', 'Teacher', 'Student', 'Parent'] },
-      { name: t(lang, navKeys.rooms), path: '/rooms', icon: Video, roles: ['Super Admin', 'Admin', 'Teacher', 'Student', 'Parent'] },
-      { name: t(lang, navKeys.settings), path: '/settings', icon: Settings, roles: ['Super Admin', 'Admin', 'Teacher', 'Student', 'Parent'] },
+      { name: t(lang, navKeys.attendance), path: '/school/attendance', icon: CalendarCheck, roles: ['Teacher', 'Student', 'Parent'] },
+      { name: t(lang, navKeys.lessons), path: '/school/content', icon: FileDown, roles: ['Teacher', 'Student', 'Parent'] },
+      { name: t(lang, navKeys.chat), path: '/school/chat', icon: MessageSquare, roles: ['Super Admin', 'Admin', 'Teacher', 'Student', 'Parent'] },
+      { name: t(lang, navKeys.rooms), path: '/school/rooms', icon: Video, roles: ['Super Admin', 'Admin', 'Teacher', 'Student', 'Parent'] },
+      { name: t(lang, navKeys.settings), path: '/school/settings', icon: Settings, roles: ['Super Admin', 'Admin', 'Teacher', 'Student', 'Parent'] },
     ];
-    return items.filter(item => item.roles.includes(user?.role) && (!item.ownerOnly || user?.school_id === null));
+    return items.filter(item => {
+      const roleMatch = item.roles.includes(user?.role);
+      const ownerMatch = item.ownerOnly ? (user?.role === 'Owner' || !user?.school_id) : true;
+      return roleMatch && ownerMatch;
+    });
   };
 
   const sidebarContent = (

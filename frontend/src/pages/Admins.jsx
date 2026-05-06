@@ -1,70 +1,14 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card } from '../components/ui/Card';
 import { Table, TableHeader, TableRow, TableHead, TableBody, TableCell } from '../components/ui/Table';
 import { Button } from '../components/ui/Button';
 import { Modal } from '../components/ui/Modal';
-import { Plus, Search, MoreVertical, ShieldAlert, Trash2, UserCheck, UserX, Loader } from 'lucide-react';
+import { Plus, Search, Trash2, UserCheck, UserX, Loader } from 'lucide-react';
 import { useLanguage } from '../context/LanguageContext';
 import { useAuth } from '../context/AuthContext';
 import { t } from '../i18n/translations';
 import API from '../config';
-
-function ActionMenu({ admin, onDelete, onToggleStatus }) {
-  const { lang } = useLanguage();
-  const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-
-  useEffect(() => {
-    function handleClickOutside(e) {
-      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  const isSuperAdmin = admin.role === 'Super Admin';
-
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        onClick={() => setOpen(!open)}
-        className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-lg transition-colors"
-      >
-        <MoreVertical size={18} />
-      </button>
-
-      {open && (
-        <div className="absolute right-0 mt-1 w-44 bg-white border border-slate-200 rounded-xl shadow-lg z-50 py-1">
-          {!isSuperAdmin && (
-            <>
-              <button
-                onClick={() => { onToggleStatus(admin.id); setOpen(false); }}
-                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-slate-700 hover:bg-slate-50 transition-colors"
-              >
-                {admin.status === 'Active'
-                  ? <><UserX size={15} className="text-amber-500" /> {t(lang, 'deactivate')}</>
-                  : <><UserCheck size={15} className="text-green-500" /> {t(lang, 'activate')}</>
-                }
-              </button>
-              <div className="border-t border-slate-100 my-1" />
-              <button
-                onClick={() => { onDelete(admin.id); setOpen(false); }}
-                className="w-full flex items-center gap-2 px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
-              >
-                <Trash2 size={15} />
-                {t(lang, 'delete')}
-              </button>
-            </>
-          )}
-          {isSuperAdmin && (
-            <div className="px-4 py-2 text-xs text-slate-400 italic">Super Admin — Protected</div>
-          )}
-        </div>
-      )}
-    </div>
-  );
-}
 
 export function Admins() {
   const { lang } = useLanguage();
@@ -76,82 +20,89 @@ export function Admins() {
       navigate('/');
     }
   }, [user, navigate]);
+
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'Admin' });
+  const [formData, setFormData] = useState({ name: '', email: '', password: '', role: 'Admin', school_id: '' });
   const [admins, setAdmins] = useState([]);
+  const [schools, setSchools] = useState([]);
   const [loading, setLoading] = useState(true);
   const [formLoading, setFormLoading] = useState(false);
   const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
   const [search, setSearch] = useState('');
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  
+  const isPlatformOwner = user && !user.school_id;
 
   useEffect(() => {
-    fetchAdmins();
-  }, []);
+    loadAdmins();
+    if (isPlatformOwner) {
+      loadSchools();
+    }
+  }, [isPlatformOwner]);
 
-  const fetchAdmins = async () => {
+  const loadSchools = async () => {
     try {
-            const res = await fetch(`${API}/auth/admins`, {
-        credentials: 'include'
-      });
+      const res = await fetch(API + '/schools/', { credentials: 'include' });
+      if (res.ok) {
+        const data = await res.json();
+        setSchools(data);
+      }
+    } catch (err) {
+      console.error('Error loading schools:', err);
+    }
+  };
+
+  const loadAdmins = async () => {
+    try {
+      const res = await fetch(API + '/auth/admins', { credentials: 'include' });
       if (res.ok) {
         const data = await res.json();
         setAdmins(data);
       }
     } catch (err) {
-      console.error(err);
+      console.error('Error loading admins:', err);
     } finally {
       setLoading(false);
     }
   };
 
-  const filteredAdmins = admins.filter(a =>
-    a.name.toLowerCase().includes(search.toLowerCase()) ||
-    a.email.toLowerCase().includes(search.toLowerCase())
-  );
+  const filteredAdmins = admins.filter(a => {
+    if (!a) return false;
+    const searchLower = search.toLowerCase();
+    return (a.name || '').toLowerCase().includes(searchLower) || 
+           (a.email || '').toLowerCase().includes(searchLower);
+  });
 
   const handleDelete = async (id) => {
-    const admin = admins.find(a => a.id === id);
-    if (admin?.role === 'Super Admin') {
-      setError('Super Admin cannot be deleted');
-      return;
-    }
     try {
-            await fetch(`${API}/auth/admins/${id}`, {
+      const res = await fetch(API + '/auth/admins/' + id, {
         method: 'DELETE',
         credentials: 'include'
       });
+      if (res.ok) {
+        setAdmins(prev => prev.filter(a => a.id !== id));
+        alert(t(lang, 'adminDeleted'));
+      }
     } catch (err) {
-      console.warn(err.message);
+      console.error('Error deleting admin:', err);
     } finally {
-      setAdmins(prev => prev.filter(a => a.id !== id));
       setDeleteConfirm(null);
-      showSuccess(t(lang, 'adminDeleted'));
-      fetchAdmins();
     }
   };
 
   const handleToggleStatus = async (id) => {
     try {
-            const res = await fetch(`${API}/auth/admins/${id}/toggle-status`, {
+      const res = await fetch(API + '/auth/admins/' + id + '/toggle-status', {
         method: 'PUT',
         credentials: 'include'
       });
       if (res.ok) {
         const data = await res.json();
         setAdmins(prev => prev.map(a => a.id === id ? { ...a, status: data.status } : a));
-      } else {
-        setAdmins(prev => prev.map(a =>
-          a.id === id ? { ...a, status: a.status === 'Active' ? 'Inactive' : 'Active' } : a
-        ));
       }
     } catch (err) {
-      setAdmins(prev => prev.map(a =>
-        a.id === id ? { ...a, status: a.status === 'Active' ? 'Inactive' : 'Active' } : a
-      ));
+      console.error('Error toggling status:', err);
     }
-    showSuccess(t(lang, 'statusToggled'));
   };
 
   const handleAddAdmin = async (e) => {
@@ -160,44 +111,52 @@ export function Admins() {
     setError('');
 
     try {
-            const res = await fetch(`${API}/auth/add-admin`, {
+      // Prepare data - ensure school_id is null if empty string
+      const dataToSend = { ...formData };
+      if (!isPlatformOwner && user?.school_id) {
+        dataToSend.school_id = user.school_id;
+      }
+      // Convert empty string to null for school_id
+      if (dataToSend.school_id === '') {
+        dataToSend.school_id = null;
+      }
+
+      const res = await fetch(`${API}/auth/add-admin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
-        body: JSON.stringify(formData),
+        body: JSON.stringify(dataToSend),
       });
 
       if (!res.ok) {
-        const err = await res.json();
-        const errMsg = err.detail || t(lang, 'failedToAddAdmin');
-        setError(errMsg);
+        const errData = await res.json();
+        let errorMessage = 'Failed to add admin';
+        
+        if (errData.detail) {
+          if (Array.isArray(errData.detail)) {
+            // FastAPI validation errors - extract msg field
+            errorMessage = errData.detail.map(d => d.msg || String(d)).join(', ');
+          } else if (typeof errData.detail === 'string') {
+            errorMessage = errData.detail;
+          } else {
+            errorMessage = 'Invalid data provided';
+          }
+        }
+        
+        setError(String(errorMessage));
+        setFormLoading(false);
         return;
       }
 
-      const data = await res.json();
-      const newAdmin = {
-        id: data.id,
-        name: formData.name,
-        email: formData.email,
-        status: 'Active',
-        addedDate: new Date().toISOString().split('T')[0],
-        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(formData.name)}&background=6366f1&color=fff`
-      };
-      setAdmins(prev => [...prev, newAdmin]);
-      showSuccess(t(lang, 'adminAdded'));
+      alert(t(lang, 'adminAdded'));
       setIsModalOpen(false);
-      setFormData({ name: '', email: '', password: '', role: 'Admin' });
-      fetchAdmins();
+      setFormData({ name: '', email: '', password: '', role: 'Admin', school_id: '' });
+      loadAdmins();
     } catch (err) {
-      setError(err.message);
+      setError(String(err?.message || 'Unknown error'));
     } finally {
       setFormLoading(false);
     }
-  };
-
-  const showSuccess = (msg) => {
-    setSuccess(msg);
-    setTimeout(() => setSuccess(''), 3000);
   };
 
   return (
@@ -213,16 +172,9 @@ export function Admins() {
         </Button>
       </div>
 
-      {success && (
-        <div className="bg-green-50 border border-green-200 text-green-700 rounded-lg p-3 text-sm">{success}</div>
+      {error && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm">{error}</div>
       )}
-
-      <div className="bg-blue-50 border border-blue-100 rounded-lg p-4 flex items-start">
-        <ShieldAlert className="text-blue-500 mr-3 shrink-0 mt-0.5" size={20} />
-        <p className="text-sm text-blue-800">
-          <strong>{t(lang, 'note')}:</strong> {t(lang, 'adminsNote')}
-        </p>
-      </div>
 
       <Card>
         <div className="p-4 border-b border-slate-100 flex items-center justify-between">
@@ -244,29 +196,25 @@ export function Admins() {
               <TableHead>{t(lang, 'name')}</TableHead>
               <TableHead>{t(lang, 'email')}</TableHead>
               <TableHead>{t(lang, 'status')}</TableHead>
-              <TableHead>{t(lang, 'addedDate')}</TableHead>
-              <TableHead className="text-right">{t(lang, 'actions')}</TableHead>
+              <TableHead>{t(lang, 'actions')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center py-10 text-slate-500">
+                <TableCell colSpan={4} className="text-center py-10 text-slate-500">
                   <Loader className="animate-spin mx-auto mb-2" size={24} />
                   {t(lang, 'loadingRequests')}
                 </TableCell>
               </TableRow>
             ) : filteredAdmins.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="text-center text-slate-400 py-10">{t(lang, 'noAdmins')}</TableCell>
+                <TableCell colSpan={4} className="text-center text-slate-400 py-10">{t(lang, 'noAdmins')}</TableCell>
               </TableRow>
             ) : (
               filteredAdmins.map((admin) => (
                 <TableRow key={admin.id}>
-                  <TableCell className="font-medium text-slate-800 flex items-center gap-3">
-                    <img src={admin.avatar} alt={admin.name} className="w-8 h-8 rounded-full border border-slate-200" />
-                    {admin.name}
-                  </TableCell>
+                  <TableCell className="font-medium text-slate-800">{admin.name}</TableCell>
                   <TableCell className="text-slate-500">{admin.email}</TableCell>
                   <TableCell>
                     <span className={`px-2.5 py-1 rounded-md text-xs font-medium ${
@@ -274,17 +222,18 @@ export function Admins() {
                     }`}>
                       {admin.status}
                     </span>
-                    {admin.role === 'Super Admin' && (
-                      <span className="ml-2 px-2 py-0.5 bg-mauve-100 text-mauve-700 rounded text-[10px] font-bold">Super Admin</span>
-                    )}
                   </TableCell>
-                  <TableCell className="text-slate-500">{admin.addedDate}</TableCell>
-                  <TableCell className="text-right">
-                    <ActionMenu
-                      admin={admin}
-                      onDelete={(id) => setDeleteConfirm(id)}
-                      onToggleStatus={handleToggleStatus}
-                    />
+                  <TableCell>
+                    {admin.role !== 'Super Admin' && (
+                      <div className="flex gap-2">
+                        <button onClick={() => handleToggleStatus(admin.id)} className="p-2 text-slate-400 hover:text-green-600">
+                          {admin.status === 'Active' ? <UserX size={16} /> : <UserCheck size={16} />}
+                        </button>
+                        <button onClick={() => setDeleteConfirm(admin.id)} className="p-2 text-slate-400 hover:text-red-600">
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    )}
                   </TableCell>
                 </TableRow>
               ))
@@ -297,7 +246,7 @@ export function Admins() {
         <div className="space-y-4">
           <p className="text-slate-600">{t(lang, 'confirmDeleteAdmin')}</p>
           <div className="flex gap-3 pt-2">
-            <Button type="button" onClick={() => setDeleteConfirm(null)} className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200">
+            <Button type="button" onClick={() => setDeleteConfirm(null)} className="flex-1 bg-slate-100 text-slate-700">
               {t(lang, 'cancel')}
             </Button>
             <Button type="button" onClick={() => handleDelete(deleteConfirm)} className="flex-1 bg-red-600 hover:bg-red-700 text-white">
@@ -318,32 +267,48 @@ export function Admins() {
             <input type="text" required value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20 focus:border-mauve-500"
-              placeholder={t(lang, 'enterAdminName')} />
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">{t(lang, 'email')}</label>
             <input type="email" required value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20 focus:border-mauve-500"
-              placeholder="admin@school.com" />
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">{t(lang, 'password')}</label>
             <input type="password" required value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20 focus:border-mauve-500"
-              placeholder={t(lang, 'enterPassword')} />
+            />
           </div>
           <div>
             <label className="block text-sm font-medium text-slate-700 mb-1">{t(lang, 'role')}</label>
             <select value={formData.role} onChange={(e) => setFormData({ ...formData, role: e.target.value })}
               className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20 focus:border-mauve-500">
               <option value="Admin">Admin</option>
-              <option value="Super Admin">Super Admin</option>
+              {isPlatformOwner && <option value="Super Admin">Super Admin</option>}
+              <option value="Teacher">Teacher</option>
+              <option value="Student">Student</option>
             </select>
           </div>
+          {isPlatformOwner && (
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">{t(lang, 'school')}</label>
+              <select value={formData.school_id} onChange={(e) => setFormData({ ...formData, school_id: e.target.value })}
+                className="w-full px-4 py-2 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-mauve-500/20 focus:border-mauve-500"
+                required
+              >
+                <option value="">{t(lang, 'selectSchool')}</option>
+                {schools.map(school => (
+                  <option key={school.id} value={school.id}>{school.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div className="flex gap-3 pt-4">
-            <Button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 bg-slate-100 text-slate-700 hover:bg-slate-200">
+            <Button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 bg-slate-100 text-slate-700">
               {t(lang, 'cancel')}
             </Button>
             <Button type="submit" className="flex-1" disabled={formLoading}>

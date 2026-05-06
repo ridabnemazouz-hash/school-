@@ -10,7 +10,7 @@ router = APIRouter(prefix="/chat", tags=["chat"])
 @router.get("/contacts")
 def get_contacts(current_user: UserDB = Depends(get_current_user), db: Session = Depends(get_db)):
     query = db.query(UserDB).filter(UserDB.id != current_user.id, UserDB.status == "Active")
-    if current_user.role != "Super Admin":
+    if current_user.school_id is not None:
         query = query.filter(UserDB.school_id == current_user.school_id)
     contacts = query.all()
     result = [{"id": u.id, "name": u.name, "role": u.role, "online": True} for u in contacts]
@@ -21,7 +21,7 @@ def get_contacts(current_user: UserDB = Depends(get_current_user), db: Session =
             UserDB.status == "Active",
             UserDB.role.in_(["Admin", "Super Admin", "Teacher"])
         )
-        if current_user.role != "Super Admin":
+        if current_user.school_id is not None:
             group_query = group_query.filter(UserDB.school_id == current_user.school_id)
         group_members = group_query.all()
         member_names = [u.name for u in group_members]
@@ -40,7 +40,7 @@ def get_messages(contact_id: int, current_user: UserDB = Depends(get_current_use
     if contact_id == 0:
         # Group messages
         query = db.query(MessageDB).filter(MessageDB.is_group == True)
-        if current_user.role != "Super Admin":
+        if current_user.school_id is not None:
             query = query.filter(MessageDB.school_id == current_user.school_id)
         messages = query.order_by(MessageDB.timestamp.asc()).all()
         return messages
@@ -50,7 +50,7 @@ def get_messages(contact_id: int, current_user: UserDB = Depends(get_current_use
             ((MessageDB.sender_id == current_user.id) & (MessageDB.receiver_id == contact_id)) |
             ((MessageDB.sender_id == contact_id) & (MessageDB.receiver_id == current_user.id))
         )
-        if current_user.role != "Super Admin":
+        if current_user.school_id is not None:
             query = query.filter(MessageDB.school_id == current_user.school_id)
         messages = query.order_by(MessageDB.timestamp.asc()).all()
         return messages
